@@ -28,11 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Required repo secrets:
-      #   SSH_HOST              - server IP/hostname
-      #   SSH_USER              - SSH user
-      #   SSH_PRIVATE_KEY       - private key with access to the server
-      #   SSH_PORT              - optional, defaults to 22
-      #   FRONTEND_DEPLOY_PATH  - absolute path to this repo's checkout on the server
+      #   SSH_HOST        - server IP/hostname
+      #   SSH_USER        - SSH user
+      #   SSH_PRIVATE_KEY - private key with access to the server
+      #   SSH_PORT        - optional, defaults to 22
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -42,7 +41,8 @@ jobs:
           port: ${{ secrets.SSH_PORT || '22' }}
           script: |
             set -e
-            cd ${{ secrets.FRONTEND_DEPLOY_PATH }}
+            cd ~/apps/kassa/frontend/kassa-frontend
             git pull origin main
+            cd ~/apps/kassa
             docker compose build frontend
             docker compose up -d frontend
