@@ -53,7 +53,7 @@ export default function Loans() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-ink">Borc ver</h1>
         <button className="btn-primary" onClick={() => setCreateOpen(true)}>
           <Plus size={16} /> Yeni borc
@@ -78,7 +78,8 @@ export default function Loans() {
       </div>
 
       <div className="card overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-border bg-paper text-left text-muted">
               <th className="px-4 py-3 font-medium">Tarix</th>
@@ -140,6 +141,7 @@ export default function Loans() {
             })}
           </tbody>
         </table>
+        </div>
         <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount} onPageChange={setPage} />
       </div>
 

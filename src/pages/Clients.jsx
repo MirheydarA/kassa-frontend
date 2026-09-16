@@ -23,20 +23,21 @@ export default function Clients() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-ink">Müştərilər</h1>
         <button className="btn-primary" onClick={() => setCreateOpen(true)}>
           <Plus size={16} /> Yeni müştəri
         </button>
       </div>
 
-      <div className="mb-4 relative max-w-sm">
+      <div className="mb-4 relative w-full max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input className="input !pl-9" placeholder="Axtar…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <div className="card overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[420px] text-sm">
           <thead>
             <tr className="border-b border-border bg-paper text-left text-muted">
               <th className="px-4 py-3 font-medium">Ad</th>
@@ -62,6 +63,7 @@ export default function Clients() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <CreateClientModal open={createOpen} onClose={() => setCreateOpen(false)} onDone={invalidate} />

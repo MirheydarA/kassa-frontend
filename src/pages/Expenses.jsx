@@ -28,7 +28,7 @@ export default function Expenses() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-ink">Xərclər</h1>
         <button className="btn-primary" onClick={() => setCreateOpen(true)}>
           <Plus size={16} /> Yeni xərc
@@ -37,7 +37,8 @@ export default function Expenses() {
       <p className="mb-4 text-sm text-muted">Xərclər yalnız rubl kassasından çıxılır.</p>
 
       <div className="card overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] text-sm">
           <thead>
             <tr className="border-b border-border bg-paper text-left text-muted">
               <th className="px-4 py-3 font-medium">Tarix</th>
@@ -65,6 +66,7 @@ export default function Expenses() {
             ))}
           </tbody>
         </table>
+        </div>
         <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount} onPageChange={setPage} />
       </div>
 

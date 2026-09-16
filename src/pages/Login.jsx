@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { Eye, EyeOff } from 'lucide-react'
 import { login } from '../api/auth'
 import { useAuthStore } from '../store/authStore'
 
 export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const setAuth = useAuthStore((s) => s.login)
   const navigate = useNavigate()
@@ -45,13 +47,24 @@ export default function Login() {
           </div>
           <div className="mb-6">
             <label className="label">Şifrə</label>
-            <input
-              className="input"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <input
+                className="input !pr-10"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Şifrəni gizlət' : 'Şifrəni göstər'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <button type="submit" className="btn-primary w-full" disabled={loading}>
             {loading ? 'Yoxlanılır…' : 'Daxil ol'}
