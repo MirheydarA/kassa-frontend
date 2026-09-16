@@ -48,13 +48,13 @@ export default function Dashboard() {
       <h1 className="mb-6 text-2xl font-semibold text-ink">Kassa</h1>
 
       <div className="mb-8 grid grid-cols-2 gap-4">
-        <div className="card p-5">
+        <div className="card p-4 sm:p-5">
           <div className="text-sm text-muted">Dollar kassası</div>
-          <div className="mt-1 text-3xl font-semibold text-usd">{formatMoney(balance?.usd, 'USD')}</div>
+          <div className="mt-1 text-xl font-semibold text-usd sm:text-3xl">{formatMoney(balance?.usd, 'USD')}</div>
         </div>
-        <div className="card p-5">
+        <div className="card p-4 sm:p-5">
           <div className="text-sm text-muted">Rubl kassası</div>
-          <div className="mt-1 text-3xl font-semibold text-rub">{formatMoney(balance?.rub, 'RUB')}</div>
+          <div className="mt-1 text-xl font-semibold text-rub sm:text-3xl">{formatMoney(balance?.rub, 'RUB')}</div>
         </div>
       </div>
 
@@ -88,7 +88,8 @@ export default function Dashboard() {
       </div>
 
       <div className="card overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-border bg-paper text-left text-muted">
               <th className="px-4 py-3 font-medium">Tarix</th>
@@ -120,6 +121,7 @@ export default function Dashboard() {
             ))}
           </tbody>
         </table>
+        </div>
         <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount} onPageChange={setPage} />
       </div>
     </div>
