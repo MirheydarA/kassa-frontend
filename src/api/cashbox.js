@@ -12,6 +12,14 @@ export async function getCashBoxTransactions({ currency, type, from, to, page = 
   return data // CashBoxTransactionDtoPagedResult
 }
 
+// Gün-gün səhifələmə: hər çağırış bir günün bütün hərəkətlərini qaytarır (backend tərəfdən, frontend-i yükləməmək üçün)
+export async function getCashBoxTransactionsByDay({ currency, type, from, to, dayPage = 1 } = {}) {
+  const { data } = await apiClient.get('/api/cashbox/transactions/by-day', {
+    params: { currency, type, from, to, dayPage }
+  })
+  return data // CashBoxDayResultDto { date, items, dayPage, totalDays }
+}
+
 export async function revertTransaction(id, password) {
   const { data } = await apiClient.post(`/api/cashbox/transactions/${id}/revert`, { password })
   return data

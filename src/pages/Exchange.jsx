@@ -13,8 +13,8 @@ import MoneyInput from '../components/MoneyInput'
 // Dollar alışı: müştəri bizə USD verir, biz ona RUB veririk (RUB = USD * kurs)
 // Dollar satışı: müştəri bizə RUB verir, biz ona USD veririk (USD = RUB / kurs)
 const TABS = {
-  buy: { key: 'buy', label: 'Dollar alışı', fromCurrency: 'USD', toCurrency: 'RUB', icon: ArrowDownCircle, tone: 'emerald' },
-  sell: { key: 'sell', label: 'Dollar satışı', fromCurrency: 'RUB', toCurrency: 'USD', icon: ArrowUpCircle, tone: 'rose' }
+  sell: { key: 'sell', label: 'Dollar satışı', fromCurrency: 'RUB', toCurrency: 'USD', icon: ArrowUpCircle, tone: 'rose' },
+  buy: { key: 'buy', label: 'Dollar alışı', fromCurrency: 'USD', toCurrency: 'RUB', icon: ArrowDownCircle, tone: 'emerald' }
 }
 
 const TAB_TONE = {
@@ -40,7 +40,7 @@ function calcToAmount(fromCurrency, toCurrency, fromAmount, rate) {
 
 export default function Exchange() {
   const qc = useQueryClient()
-  const [tab, setTab] = useState('buy')
+  const [tab, setTab] = useState('sell')
   const [page, setPage] = useState(1)
   const pageSize = 10
 

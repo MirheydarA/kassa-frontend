@@ -4,22 +4,43 @@ import toast from 'react-hot-toast'
 import { Plus, Pencil } from 'lucide-react'
 import { getExpenses, createExpense, updateExpense } from '../api/expenses'
 import { formatMoney, formatDate } from '../lib/format'
-import Pagination from '../components/Pagination'
 import Modal from '../components/Modal'
 import MoneyInput from '../components/MoneyInput'
 
+function dayKey(dateStr) {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 export default function Expenses() {
   const qc = useQueryClient()
-  const [page, setPage] = useState(1)
-  const pageSize = 10
+  const [dayPage, setDayPage] = useState(1)
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editExp, setEditExp] = useState(null)
 
+  // Bütün xərcləri gətiririk ki, günlərə görə qruplaşdıraq (UI ağır cədvəldə donmasın deyə səhifə gün-gün göstərilir)
   const { data, isLoading } = useQuery({
-    queryKey: ['expenses', page],
-    queryFn: () => getExpenses({ page, pageSize })
+    queryKey: ['expenses'],
+    queryFn: () => getExpenses({ page: 1, pageSize: 1000 })
   })
+
+  const allItems = data?.items ?? []
+
+  const dayGroups = []
+  for (const item of allItems) {
+    const key = dayKey(item.createdAt)
+    let group = dayGroups.find((g) => g.key === key)
+    if (!group) {
+      group = { key, items: [] }
+      dayGroups.push(group)
+    }
+    group.items.push(item)
+  }
+
+  const totalDayPages = Math.max(1, dayGroups.length)
+  const currentDayGroup = dayGroups[dayPage - 1]
+  const visibleItems = currentDayGroup?.items ?? []
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['expenses'] })
@@ -50,10 +71,17 @@ export default function Expenses() {
           </thead>
           <tbody>
             {isLoading && <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
-            {!isLoading && (data?.items?.length ?? 0) === 0 && (
+            {!isLoading && allItems.length === 0 && (
               <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">Xərc tapılmadı</td></tr>
             )}
-            {data?.items?.map((exp) => (
+            {!isLoading && allItems.length > 0 && (
+              <tr className="bg-paper">
+                <td colSpan={4} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                  {currentDayGroup?.key ?? '—'}
+                </td>
+              </tr>
+            )}
+            {visibleItems.map((exp) => (
               <tr key={exp.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 text-muted">{formatDate(exp.createdAt)}</td>
                 <td className="px-4 py-3 text-ink">{exp.description || '—'}</td>
@@ -68,7 +96,28 @@ export default function Expenses() {
           </tbody>
         </table>
         </div>
-        <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount} onPageChange={setPage} />
+
+        <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted">
+          <span>{dayGroups.length} gün</span>
+          <div className="flex items-center gap-1">
+            {/* dayGroups[0] ən son gündür (bu gün), böyük indeks daha köhnə günə uyğundur */}
+            <button
+              className="btn-secondary !px-2 !py-1"
+              disabled={dayPage >= totalDayPages}
+              onClick={() => setDayPage((p) => Math.min(totalDayPages, p + 1))}
+            >
+              Əvvəlki gün
+            </button>
+            <span className="px-2 text-ink">{dayGroups.length === 0 ? 0 : dayPage} / {totalDayPages}</span>
+            <button
+              className="btn-secondary !px-2 !py-1"
+              disabled={dayPage <= 1}
+              onClick={() => setDayPage((p) => Math.max(1, p - 1))}
+            >
+              Növbəti gün
+            </button>
+          </div>
+        </div>
       </div>
 
       <CreateExpenseModal open={createOpen} onClose={() => setCreateOpen(false)} onDone={invalidate} />
