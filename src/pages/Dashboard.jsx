@@ -1,29 +1,34 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getCashBoxBalance, getCashBoxTransactions } from '../api/cashbox'
+import { getCashBoxBalance, getCashBoxTransactionsByDay } from '../api/cashbox'
 import { formatMoney, formatDate, CURRENCIES } from '../lib/format'
 import CurrencyBadge from '../components/CurrencyBadge'
-import Pagination from '../components/Pagination'
 import RevertTransactionButton from '../components/RevertTransactionButton'
 
 const TYPE_LABELS = {
   loan: 'Borc verildi',
   loan_payment: 'Borc qaytarıldı',
   mydebt: 'Mən borc götürdüm',
+  mydebt_payment: 'Mənim borcum qaytarıldı',
   exchange_in: 'Exchange (daxil)',
   exchange_out: 'Exchange (xaric)',
   expense: 'Xərc'
 }
 
+function formatDayKey(dateStr) {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 export default function Dashboard() {
   const qc = useQueryClient()
   const [filters, setFilters] = useState({ currency: '', type: '', from: '', to: '' })
-  const [page, setPage] = useState(1)
-  const pageSize = 15
+  const [dayPage, setDayPage] = useState(1)
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['cashbox-balance'] })
-    qc.invalidateQueries({ queryKey: ['cashbox-transactions'] })
+    qc.invalidateQueries({ queryKey: ['cashbox-transactions-by-day'] })
     qc.invalidateQueries({ queryKey: ['loans'] })
     qc.invalidateQueries({ queryKey: ['mydebts'] })
     qc.invalidateQueries({ queryKey: ['exchange'] })
@@ -36,21 +41,23 @@ export default function Dashboard() {
     refetchInterval: 30_000
   })
 
+  // Gün-gün: backend bir çağırışda yalnız bir günün hərəkətlərini qaytarır (böyük datasetlərdə frontend-i yükləməmək üçün)
   const { data, isLoading } = useQuery({
-    queryKey: ['cashbox-transactions', filters, page],
+    queryKey: ['cashbox-transactions-by-day', filters, dayPage],
     queryFn: () =>
-      getCashBoxTransactions({
+      getCashBoxTransactionsByDay({
         currency: filters.currency || undefined,
         type: filters.type || undefined,
         from: filters.from || undefined,
         to: filters.to || undefined,
-        page,
-        pageSize
+        dayPage
       })
   })
 
+  const totalDayPages = Math.max(1, data?.totalDays ?? 1)
+
   function updateFilter(key, val) {
-    setPage(1)
+    setDayPage(1)
     setFilters((f) => ({ ...f, [key]: val }))
   }
 
@@ -119,6 +126,13 @@ export default function Dashboard() {
             {!isLoading && (data?.items?.length ?? 0) === 0 && (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Əməliyyat tapılmadı</td></tr>
             )}
+            {!isLoading && (data?.items?.length ?? 0) > 0 && (
+              <tr className="bg-paper">
+                <td colSpan={7} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                  {formatDayKey(data?.date)}
+                </td>
+              </tr>
+            )}
             {data?.items?.map((tx) => (
               <tr key={tx.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 text-muted">{formatDate(tx.createdAt)}</td>
@@ -137,7 +151,28 @@ export default function Dashboard() {
           </tbody>
         </table>
         </div>
-        <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount} onPageChange={setPage} />
+
+        <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted">
+          <span>{data?.totalDays ?? 0} gün</span>
+          <div className="flex items-center gap-1">
+            {/* dayPage=1 ən son gündür (bu gün), böyük dayPage daha köhnə günə uyğundur */}
+            <button
+              className="btn-secondary !px-2 !py-1"
+              disabled={dayPage >= totalDayPages}
+              onClick={() => setDayPage((p) => Math.min(totalDayPages, p + 1))}
+            >
+              Əvvəlki gün
+            </button>
+            <span className="px-2 text-ink">{(data?.totalDays ?? 0) === 0 ? 0 : dayPage} / {totalDayPages}</span>
+            <button
+              className="btn-secondary !px-2 !py-1"
+              disabled={dayPage <= 1}
+              onClick={() => setDayPage((p) => Math.max(1, p - 1))}
+            >
+              Növbəti gün
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

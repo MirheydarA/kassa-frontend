@@ -25,6 +25,13 @@ const STATUS_STYLES = {
   default: 'border border-border bg-surface text-muted'
 }
 
+// Backend-in LoanStatus enum-una tam uyğun dəyərlər (filter üçün) - fərqli yazılışlar backend-də süzgəci sükutla keçirir
+const STATUS_FILTER_OPTIONS = [
+  { value: 'Open', label: 'Açıq' },
+  { value: 'PartiallyPaid', label: 'Qismən' },
+  { value: 'Closed', label: 'Bağlı' }
+]
+
 function dayKey(dateStr) {
   const d = new Date(dateStr)
   return d.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -105,7 +112,7 @@ export default function Loans() {
           <label className="label">Status</label>
           <select className="input !w-44" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
             <option value="">Hamısı</option>
-            {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            {STATUS_FILTER_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
           </select>
         </div>
       </div>
@@ -186,18 +193,20 @@ export default function Loans() {
         <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted">
           <span>{dayGroups.length} gün</span>
           <div className="flex items-center gap-1">
+            {/* dayGroups[0] ən son gündür (bu gün), böyük indeks daha köhnə günə uyğundur.
+                "Əvvəlki gün" -> daha köhnə günə (indeksi artır), "Növbəti gün" -> daha yeni günə (indeksi azaldır) */}
             <button
               className="btn-secondary !px-2 !py-1"
-              disabled={dayPage <= 1}
-              onClick={() => setDayPage((p) => Math.max(1, p - 1))}
+              disabled={dayPage >= totalDayPages}
+              onClick={() => setDayPage((p) => Math.min(totalDayPages, p + 1))}
             >
               Əvvəlki gün
             </button>
             <span className="px-2 text-ink">{dayGroups.length === 0 ? 0 : dayPage} / {totalDayPages}</span>
             <button
               className="btn-secondary !px-2 !py-1"
-              disabled={dayPage >= totalDayPages}
-              onClick={() => setDayPage((p) => Math.min(totalDayPages, p + 1))}
+              disabled={dayPage <= 1}
+              onClick={() => setDayPage((p) => Math.max(1, p - 1))}
             >
               Növbəti gün
             </button>
