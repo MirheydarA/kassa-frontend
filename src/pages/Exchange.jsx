@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, ArrowRight } from 'lucide-react'
+import { Plus, Pencil, ArrowRight, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { getExchanges, createExchange, updateExchange } from '../api/exchange'
 import { formatMoney, formatDate } from '../lib/format'
 import CurrencyBadge from '../components/CurrencyBadge'
@@ -13,8 +13,21 @@ import MoneyInput from '../components/MoneyInput'
 // Dollar alışı: müştəri bizə USD verir, biz ona RUB veririk (RUB = USD * kurs)
 // Dollar satışı: müştəri bizə RUB verir, biz ona USD veririk (USD = RUB / kurs)
 const TABS = {
-  buy: { key: 'buy', label: 'Dollar alışı', fromCurrency: 'USD', toCurrency: 'RUB' },
-  sell: { key: 'sell', label: 'Dollar satışı', fromCurrency: 'RUB', toCurrency: 'USD' }
+  buy: { key: 'buy', label: 'Dollar alışı', fromCurrency: 'USD', toCurrency: 'RUB', icon: ArrowDownCircle, tone: 'emerald' },
+  sell: { key: 'sell', label: 'Dollar satışı', fromCurrency: 'RUB', toCurrency: 'USD', icon: ArrowUpCircle, tone: 'rose' }
+}
+
+const TAB_TONE = {
+  emerald: {
+    active: 'border-emerald-500 bg-emerald-50',
+    iconActive: 'bg-emerald-500 text-white',
+    labelActive: 'text-emerald-700'
+  },
+  rose: {
+    active: 'border-rose-500 bg-rose-50',
+    iconActive: 'bg-rose-500 text-white',
+    labelActive: 'text-rose-700'
+  }
 }
 
 function calcToAmount(fromCurrency, toCurrency, fromAmount, rate) {
@@ -61,18 +74,34 @@ export default function Exchange() {
         </button>
       </div>
 
-      <div className="mb-4 flex gap-2 border-b border-border">
-        {Object.values(TABS).map((t) => (
-          <button
-            key={t.key}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === t.key ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'
-            }`}
-            onClick={() => switchTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:max-w-md">
+        {Object.values(TABS).map((t) => {
+          const isActive = tab === t.key
+          const tone = TAB_TONE[t.tone]
+          const Icon = t.icon
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => switchTab(t.key)}
+              className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition ${
+                isActive ? tone.active : 'border-border bg-surface hover:bg-paper'
+              }`}
+            >
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                isActive ? tone.iconActive : 'bg-paper text-muted'
+              }`}>
+                <Icon size={20} />
+              </div>
+              <div>
+                <div className={`text-sm font-semibold ${isActive ? tone.labelActive : 'text-ink'}`}>
+                  {t.label}
+                </div>
+                <div className="text-xs text-muted">{t.fromCurrency} → {t.toCurrency}</div>
+              </div>
+            </button>
+          )
+        })}
       </div>
 
       <div className="card overflow-hidden">
@@ -159,8 +188,12 @@ function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
     <Modal open={open} onClose={onClose} title={`Yeni: ${tabDef.label}`}>
       <form onSubmit={submit} className="space-y-4">
         <div>
-          <label className="label">Müştəri adı</label>
-          <ClientAutocomplete value={form.clientName} onChange={(v) => setForm((f) => ({ ...f, clientName: v }))} />
+          <label className="label">Müştəri adı (məcburi deyil)</label>
+          <ClientAutocomplete
+            value={form.clientName}
+            onChange={(v) => setForm((f) => ({ ...f, clientName: v }))}
+            placeholder="Müştəri adı (istəyə bağlı)"
+          />
         </div>
         <div>
           <label className="label">Məbləğ ({tabDef.fromCurrency})</label>
