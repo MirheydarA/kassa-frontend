@@ -1,7 +1,7 @@
 import { apiClient } from './client'
 
-export async function getExchanges({ page = 1, pageSize = 10 } = {}) {
-  const { data } = await apiClient.get('/api/exchange', { params: { page, pageSize } })
+export async function getExchanges({ fromCurrency, page = 1, pageSize = 10 } = {}) {
+  const { data } = await apiClient.get('/api/exchange', { params: { fromCurrency, page, pageSize } })
   return data // ExchangeDtoPagedResult
 }
 

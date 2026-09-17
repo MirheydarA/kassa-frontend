@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCashBoxBalance, getCashBoxTransactions } from '../api/cashbox'
 import { formatMoney, formatDate, CURRENCIES } from '../lib/format'
 import CurrencyBadge from '../components/CurrencyBadge'
 import Pagination from '../components/Pagination'
+import RevertTransactionButton from '../components/RevertTransactionButton'
 
 const TYPE_LABELS = {
   loan: 'Borc verildi',
@@ -15,9 +16,19 @@ const TYPE_LABELS = {
 }
 
 export default function Dashboard() {
+  const qc = useQueryClient()
   const [filters, setFilters] = useState({ currency: '', type: '', from: '', to: '' })
   const [page, setPage] = useState(1)
   const pageSize = 15
+
+  function invalidate() {
+    qc.invalidateQueries({ queryKey: ['cashbox-balance'] })
+    qc.invalidateQueries({ queryKey: ['cashbox-transactions'] })
+    qc.invalidateQueries({ queryKey: ['loans'] })
+    qc.invalidateQueries({ queryKey: ['mydebts'] })
+    qc.invalidateQueries({ queryKey: ['exchange'] })
+    qc.invalidateQueries({ queryKey: ['expenses'] })
+  }
 
   const { data: balance } = useQuery({
     queryKey: ['cashbox-balance'],
@@ -98,14 +109,15 @@ export default function Dashboard() {
               <th className="px-4 py-3 font-medium">Mənbə</th>
               <th className="px-4 py-3 font-medium">Qeyd</th>
               <th className="px-4 py-3 text-right font-medium">Məbləğ</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>
             )}
             {!isLoading && (data?.items?.length ?? 0) === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">Əməliyyat tapılmadı</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Əməliyyat tapılmadı</td></tr>
             )}
             {data?.items?.map((tx) => (
               <tr key={tx.id} className="border-b border-border last:border-0">
@@ -116,6 +128,9 @@ export default function Dashboard() {
                 <td className="px-4 py-3 text-muted">{tx.description || '—'}</td>
                 <td className={`px-4 py-3 text-right font-medium ${tx.amount < 0 ? 'text-danger' : 'text-brand'}`}>
                   {tx.amount > 0 ? '+' : ''}{formatMoney(tx.amount, tx.currency)}
+                </td>
+                <td className="px-4 py-3">
+                  <RevertTransactionButton transactionId={tx.id} onDone={invalidate} />
                 </td>
               </tr>
             ))}

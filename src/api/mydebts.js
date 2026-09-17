@@ -16,3 +16,9 @@ export async function updateMyDebt(id, payload) {
   const { data } = await apiClient.put(`/api/mydebts/${id}`, payload)
   return data
 }
+
+export async function addMyDebtPayment(id, payload) {
+  // { amount, note }
+  const { data } = await apiClient.post(`/api/mydebts/${id}/payments`, payload)
+  return data
+}

@@ -6,6 +6,7 @@ import { getExpenses, createExpense, updateExpense } from '../api/expenses'
 import { formatMoney, formatDate } from '../lib/format'
 import Pagination from '../components/Pagination'
 import Modal from '../components/Modal'
+import MoneyInput from '../components/MoneyInput'
 
 export default function Expenses() {
   const qc = useQueryClient()
@@ -100,7 +101,7 @@ function CreateExpenseModal({ open, onClose, onDone }) {
       <form onSubmit={submit} className="space-y-4">
         <div>
           <label className="label">Məbləğ (RUB)</label>
-          <input className="input" type="number" step="0.01" required value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
+          <MoneyInput required value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
         </div>
         <div>
           <label className="label">Qeyd</label>
@@ -148,7 +149,7 @@ function EditExpenseModal({ exp, onClose, onDone }) {
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="label">Məbləğ (RUB)</label>
-            <input className="input" type="number" step="0.01" required value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
+            <MoneyInput required value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
           </div>
           <div>
             <label className="label">Qeyd</label>
