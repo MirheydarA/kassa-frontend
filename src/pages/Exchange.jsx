@@ -3,33 +3,53 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, ArrowRight } from 'lucide-react'
 import { getExchanges, createExchange, updateExchange } from '../api/exchange'
-import { formatMoney, formatDate, CURRENCIES } from '../lib/format'
+import { formatMoney, formatDate } from '../lib/format'
 import CurrencyBadge from '../components/CurrencyBadge'
 import Pagination from '../components/Pagination'
 import Modal from '../components/Modal'
 import ClientAutocomplete from '../components/ClientAutocomplete'
+import MoneyInput from '../components/MoneyInput'
 
-function otherCurrency(c) {
-  return c === 'USD' ? 'RUB' : 'USD'
+// Dollar alışı: müştəri bizə USD verir, biz ona RUB veririk (RUB = USD * kurs)
+// Dollar satışı: müştəri bizə RUB verir, biz ona USD veririk (USD = RUB / kurs)
+const TABS = {
+  buy: { key: 'buy', label: 'Dollar alışı', fromCurrency: 'USD', toCurrency: 'RUB' },
+  sell: { key: 'sell', label: 'Dollar satışı', fromCurrency: 'RUB', toCurrency: 'USD' }
+}
+
+function calcToAmount(fromCurrency, toCurrency, fromAmount, rate) {
+  const amt = Number(fromAmount) || 0
+  const r = Number(rate) || 0
+  if (!amt || !r) return 0
+  if (fromCurrency === 'RUB' && toCurrency === 'USD') return amt / r
+  return amt * r
 }
 
 export default function Exchange() {
   const qc = useQueryClient()
+  const [tab, setTab] = useState('buy')
   const [page, setPage] = useState(1)
   const pageSize = 10
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editEx, setEditEx] = useState(null)
 
+  const activeTab = TABS[tab]
+
   const { data, isLoading } = useQuery({
-    queryKey: ['exchange', page],
-    queryFn: () => getExchanges({ page, pageSize })
+    queryKey: ['exchange', activeTab.fromCurrency, page],
+    queryFn: () => getExchanges({ fromCurrency: activeTab.fromCurrency, page, pageSize })
   })
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['exchange'] })
     qc.invalidateQueries({ queryKey: ['cashbox-balance'] })
     qc.invalidateQueries({ queryKey: ['cashbox-transactions'] })
+  }
+
+  function switchTab(key) {
+    setTab(key)
+    setPage(1)
   }
 
   return (
@@ -39,6 +59,20 @@ export default function Exchange() {
         <button className="btn-primary" onClick={() => setCreateOpen(true)}>
           <Plus size={16} /> Yeni mübadilə
         </button>
+      </div>
+
+      <div className="mb-4 flex gap-2 border-b border-border">
+        {Object.values(TABS).map((t) => (
+          <button
+            key={t.key}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+              tab === t.key ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'
+            }`}
+            onClick={() => switchTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       <div className="card overflow-hidden">
@@ -87,14 +121,14 @@ export default function Exchange() {
         <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount} onPageChange={setPage} />
       </div>
 
-      <CreateExchangeModal open={createOpen} onClose={() => setCreateOpen(false)} onDone={invalidate} />
+      <CreateExchangeModal tabDef={activeTab} open={createOpen} onClose={() => setCreateOpen(false)} onDone={invalidate} />
       <EditExchangeModal ex={editEx} onClose={() => setEditEx(null)} onDone={invalidate} />
     </div>
   )
 }
 
-function CreateExchangeModal({ open, onClose, onDone }) {
-  const [form, setForm] = useState({ clientName: '', fromCurrency: 'USD', fromAmount: '', rate: '', note: '' })
+function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
+  const [form, setForm] = useState({ clientName: '', fromAmount: '', rate: '', note: '' })
 
   const mutation = useMutation({
     mutationFn: createExchange,
@@ -102,17 +136,19 @@ function CreateExchangeModal({ open, onClose, onDone }) {
       toast.success('Mübadilə qeyd edildi')
       onDone()
       onClose()
-      setForm({ clientName: '', fromCurrency: 'USD', fromAmount: '', rate: '', note: '' })
+      setForm({ clientName: '', fromAmount: '', rate: '', note: '' })
     },
     onError: () => toast.error('Xəta baş verdi')
   })
+
+  const toAmount = calcToAmount(tabDef.fromCurrency, tabDef.toCurrency, form.fromAmount, form.rate)
 
   function submit(e) {
     e.preventDefault()
     mutation.mutate({
       clientName: form.clientName,
-      fromCurrency: form.fromCurrency,
-      toCurrency: otherCurrency(form.fromCurrency),
+      fromCurrency: tabDef.fromCurrency,
+      toCurrency: tabDef.toCurrency,
       fromAmount: Number(form.fromAmount),
       rate: Number(form.rate),
       note: form.note || null
@@ -120,26 +156,23 @@ function CreateExchangeModal({ open, onClose, onDone }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Yeni mübadilə">
+    <Modal open={open} onClose={onClose} title={`Yeni: ${tabDef.label}`}>
       <form onSubmit={submit} className="space-y-4">
         <div>
           <label className="label">Müştəri adı</label>
           <ClientAutocomplete value={form.clientName} onChange={(v) => setForm((f) => ({ ...f, clientName: v }))} />
         </div>
         <div>
-          <label className="label">Client bunu verir</label>
-          <select className="input" value={form.fromCurrency} onChange={(e) => setForm((f) => ({ ...f, fromCurrency: e.target.value }))}>
-            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <div className="text-sm text-muted">Əvəzində alır: <span className="font-medium text-ink">{otherCurrency(form.fromCurrency)}</span></div>
-        <div>
-          <label className="label">Məbləğ ({form.fromCurrency})</label>
-          <input className="input" type="number" step="0.01" required value={form.fromAmount} onChange={(e) => setForm((f) => ({ ...f, fromAmount: e.target.value }))} />
+          <label className="label">Məbləğ ({tabDef.fromCurrency})</label>
+          <MoneyInput required value={form.fromAmount} onChange={(v) => setForm((f) => ({ ...f, fromAmount: v }))} />
         </div>
         <div>
           <label className="label">Kurs</label>
           <input className="input" type="number" step="0.0001" required value={form.rate} onChange={(e) => setForm((f) => ({ ...f, rate: e.target.value }))} />
+        </div>
+        <div>
+          <label className="label">Məbləğ ({tabDef.toCurrency})</label>
+          <input className="input bg-paper" type="text" readOnly value={toAmount ? formatMoney(toAmount, tabDef.toCurrency) : ''} />
         </div>
         <div>
           <label className="label">Qeyd</label>
@@ -176,6 +209,8 @@ function EditExchangeModal({ ex, onClose, onDone }) {
     onClose()
   }
 
+  const toAmount = ex && form ? calcToAmount(ex.fromCurrency, ex.toCurrency, form.fromAmount, form.rate) : 0
+
   function submit(e) {
     e.preventDefault()
     mutation.mutate({ fromAmount: Number(form.fromAmount), rate: Number(form.rate), note: form.note || null })
@@ -187,11 +222,15 @@ function EditExchangeModal({ ex, onClose, onDone }) {
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="label">Məbləğ ({ex?.fromCurrency})</label>
-            <input className="input" type="number" step="0.01" required value={form.fromAmount} onChange={(e) => setForm((f) => ({ ...f, fromAmount: e.target.value }))} />
+            <MoneyInput required value={form.fromAmount} onChange={(v) => setForm((f) => ({ ...f, fromAmount: v }))} />
           </div>
           <div>
             <label className="label">Kurs</label>
             <input className="input" type="number" step="0.0001" required value={form.rate} onChange={(e) => setForm((f) => ({ ...f, rate: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Məbləğ ({ex?.toCurrency})</label>
+            <input className="input bg-paper" type="text" readOnly value={toAmount ? formatMoney(toAmount, ex.toCurrency) : ''} />
           </div>
           <div>
             <label className="label">Qeyd</label>

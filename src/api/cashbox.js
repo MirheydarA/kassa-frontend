@@ -11,3 +11,8 @@ export async function getCashBoxTransactions({ currency, type, from, to, page = 
   })
   return data // CashBoxTransactionDtoPagedResult
 }
+
+export async function revertTransaction(id, password) {
+  const { data } = await apiClient.post(`/api/cashbox/transactions/${id}/revert`, { password })
+  return data
+}

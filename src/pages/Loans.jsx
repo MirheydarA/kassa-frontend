@@ -5,9 +5,9 @@ import { Plus, Pencil, CircleDollarSign } from 'lucide-react'
 import { getLoans, createLoan, updateLoan, addLoanPayment } from '../api/loans'
 import { formatMoney, formatDate, CURRENCIES } from '../lib/format'
 import CurrencyBadge from '../components/CurrencyBadge'
-import Pagination from '../components/Pagination'
 import Modal from '../components/Modal'
 import ClientAutocomplete from '../components/ClientAutocomplete'
+import MoneyInput from '../components/MoneyInput'
 
 const STATUS_LABELS = {
   open: 'Açıq',
@@ -25,20 +25,53 @@ const STATUS_STYLES = {
   default: 'border border-border bg-surface text-muted'
 }
 
+function dayKey(dateStr) {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 export default function Loans() {
   const qc = useQueryClient()
   const [filters, setFilters] = useState({ status: '', currency: '' })
-  const [page, setPage] = useState(1)
-  const pageSize = 10
+  const [dayPage, setDayPage] = useState(1)
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editLoan, setEditLoan] = useState(null)
   const [payLoan, setPayLoan] = useState(null)
 
+  // Bütün (filtrlənmiş) borcları gətiririk ki, günlərə görə qruplaşdıraq və ümumi cəmi hesablayaq
   const { data, isLoading } = useQuery({
-    queryKey: ['loans', filters, page],
-    queryFn: () => getLoans({ ...filters, page, pageSize })
+    queryKey: ['loans', filters],
+    queryFn: () => getLoans({ ...filters, page: 1, pageSize: 1000 })
   })
+
+  const allItems = data?.items ?? []
+
+  // Ümumi cəmlər: valyutaya görə ayrı-ayrı (qalıq borc üzrə)
+  const totals = allItems.reduce(
+    (acc, l) => {
+      if (l.currency === 'USD') acc.usd += Number(l.remainingAmount ?? 0)
+      else if (l.currency === 'RUB') acc.rub += Number(l.remainingAmount ?? 0)
+      return acc
+    },
+    { usd: 0, rub: 0 }
+  )
+
+  // Günlərə görə qruplaşdırma və gün-əsaslı səhifələmə
+  const dayGroups = []
+  for (const item of allItems) {
+    const key = dayKey(item.createdAt)
+    let group = dayGroups.find((g) => g.key === key)
+    if (!group) {
+      group = { key, items: [] }
+      dayGroups.push(group)
+    }
+    group.items.push(item)
+  }
+
+  const totalDayPages = Math.max(1, dayGroups.length)
+  const currentDayGroup = dayGroups[dayPage - 1]
+  const visibleItems = currentDayGroup?.items ?? []
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['loans'] })
@@ -47,7 +80,7 @@ export default function Loans() {
   }
 
   function updateFilter(key, val) {
-    setPage(1)
+    setDayPage(1)
     setFilters((f) => ({ ...f, [key]: val }))
   }
 
@@ -93,10 +126,17 @@ export default function Loans() {
           </thead>
           <tbody>
             {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
-            {!isLoading && (data?.items?.length ?? 0) === 0 && (
+            {!isLoading && (allItems.length ?? 0) === 0 && (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Borc tapılmadı</td></tr>
             )}
-            {data?.items?.map((loan) => {
+            {!isLoading && allItems.length > 0 && (
+              <tr className="bg-paper">
+                <td colSpan={7} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                  {currentDayGroup?.key ?? '—'}
+                </td>
+              </tr>
+            )}
+            {visibleItems.map((loan) => {
               const rawStatus = (loan.status ?? '').toLowerCase()
               const normalizedStatus = rawStatus === 'active' || rawStatus === 'open'
                 ? 'open'
@@ -142,7 +182,38 @@ export default function Loans() {
           </tbody>
         </table>
         </div>
-        <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount} onPageChange={setPage} />
+
+        <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted">
+          <span>{dayGroups.length} gün</span>
+          <div className="flex items-center gap-1">
+            <button
+              className="btn-secondary !px-2 !py-1"
+              disabled={dayPage <= 1}
+              onClick={() => setDayPage((p) => Math.max(1, p - 1))}
+            >
+              Əvvəlki gün
+            </button>
+            <span className="px-2 text-ink">{dayGroups.length === 0 ? 0 : dayPage} / {totalDayPages}</span>
+            <button
+              className="btn-secondary !px-2 !py-1"
+              disabled={dayPage >= totalDayPages}
+              onClick={() => setDayPage((p) => Math.min(totalDayPages, p + 1))}
+            >
+              Növbəti gün
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 border-t border-border px-4 py-4">
+          <div className="rounded bg-paper px-3 py-2">
+            <div className="text-xs text-muted">Ümumi qalıq borc (USD)</div>
+            <div className="mt-1 text-lg font-semibold text-usd">{formatMoney(totals.usd, 'USD')}</div>
+          </div>
+          <div className="rounded bg-paper px-3 py-2">
+            <div className="text-xs text-muted">Ümumi qalıq borc (RUB)</div>
+            <div className="mt-1 text-lg font-semibold text-rub">{formatMoney(totals.rub, 'RUB')}</div>
+          </div>
+        </div>
       </div>
 
       <CreateLoanModal open={createOpen} onClose={() => setCreateOpen(false)} onDone={invalidate} />
@@ -192,7 +263,7 @@ function CreateLoanModal({ open, onClose, onDone }) {
         </div>
         <div>
           <label className="label">Məbləğ</label>
-          <input className="input" type="number" step="0.01" required value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
+          <MoneyInput required value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
         </div>
         {form.currency === 'USD' && (
           <div>
@@ -250,7 +321,7 @@ function EditLoanModal({ loan, onClose, onDone }) {
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="label">Məbləğ</label>
-            <input className="input" type="number" step="0.01" required value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
+            <MoneyInput required value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
           </div>
           {loan?.currency === 'USD' && (
             <div>
@@ -304,14 +375,10 @@ function PayLoanModal({ loan, onClose, onDone }) {
           </div>
           <div>
             <label className="label">Qaytarılan məbləğ</label>
-            <input
-              className="input"
-              type="number"
-              step="0.01"
-              max={loan.remainingAmount}
+            <MoneyInput
               required
               value={form.amount}
-              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+              onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
             />
           </div>
           <div>

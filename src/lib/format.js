@@ -13,3 +13,20 @@ export function formatDate(value) {
 }
 
 export const CURRENCIES = ['USD', 'RUB']
+
+// Pul məbləği sahələri üçün: yalnız tam ədədlər (kopek/sent yoxdur).
+// "480.000" kimi bir dəyər 480000 kimi şərh olunur (nöqtə/vergül minlik ayırıcı kimi baxılır, kəsr kimi yox).
+export function digitsOnly(value) {
+  return String(value ?? '').replace(/[^\d]/g, '')
+}
+
+export function formatThousands(digits) {
+  const clean = digitsOnly(digits)
+  if (!clean) return ''
+  return Number(clean).toLocaleString('en-US')
+}
+
+export function toMoneyNumber(value) {
+  const digits = digitsOnly(value)
+  return digits ? Number(digits) : ''
+}
