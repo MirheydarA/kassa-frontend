@@ -183,14 +183,19 @@ function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
   })
 
   // Hər iki məbləğ sahəsi redaktə oluna bilir: hansını yazsan, digəri kursla ondan hesablanır.
+  // Hamısı funksional setForm ilə - hər zaman ən son "rate"/məbləğ dəyərini oxuyur, hansı sıra ilə yazılmasından asılı olmayaraq.
   function handleFromAmountChange(v) {
-    const toAmount = calcToAmount(tabDef.fromCurrency, tabDef.toCurrency, v, form.rate)
-    setForm((f) => ({ ...f, fromAmount: v, toAmount: toAmount || '' }))
+    setForm((f) => {
+      const toAmount = calcToAmount(tabDef.fromCurrency, tabDef.toCurrency, v, f.rate)
+      return { ...f, fromAmount: v, toAmount: toAmount || '' }
+    })
   }
 
   function handleToAmountChange(v) {
-    const fromAmount = calcFromAmount(tabDef.fromCurrency, tabDef.toCurrency, v, form.rate)
-    setForm((f) => ({ ...f, toAmount: v, fromAmount: fromAmount || '' }))
+    setForm((f) => {
+      const fromAmount = calcFromAmount(tabDef.fromCurrency, tabDef.toCurrency, v, f.rate)
+      return { ...f, toAmount: v, fromAmount: fromAmount || '' }
+    })
   }
 
   function handleRateChange(rateStr) {
@@ -280,13 +285,17 @@ function EditExchangeModal({ ex, onClose, onDone }) {
 
   // Hər iki məbləğ sahəsi redaktə oluna bilir: hansını yazsan, digəri kursla ondan hesablanır.
   function handleFromAmountChange(v) {
-    const toAmount = calcToAmount(ex.fromCurrency, ex.toCurrency, v, form.rate)
-    setForm((f) => ({ ...f, fromAmount: v, toAmount: toAmount || '' }))
+    setForm((f) => {
+      const toAmount = calcToAmount(ex.fromCurrency, ex.toCurrency, v, f.rate)
+      return { ...f, fromAmount: v, toAmount: toAmount || '' }
+    })
   }
 
   function handleToAmountChange(v) {
-    const fromAmount = calcFromAmount(ex.fromCurrency, ex.toCurrency, v, form.rate)
-    setForm((f) => ({ ...f, toAmount: v, fromAmount: fromAmount || '' }))
+    setForm((f) => {
+      const fromAmount = calcFromAmount(ex.fromCurrency, ex.toCurrency, v, f.rate)
+      return { ...f, toAmount: v, fromAmount: fromAmount || '' }
+    })
   }
 
   function handleRateChange(rateStr) {
