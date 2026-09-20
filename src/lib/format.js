@@ -1,6 +1,6 @@
 export function formatMoney(value, currency) {
   const n = Number(value ?? 0)
-  const formatted = n.toLocaleString('az-AZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const formatted = n.toLocaleString('az-AZ', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
   if (currency === 'USD') return `$${formatted}`
   if (currency === 'RUB') return `${formatted} ₽`
   return formatted

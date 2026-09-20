@@ -24,3 +24,8 @@ export async function revertTransaction(id, password) {
   const { data } = await apiClient.post(`/api/cashbox/transactions/${id}/revert`, { password })
   return data
 }
+
+export async function adjustBalance({ currency, newAmount, password }) {
+  const { data } = await apiClient.put('/api/cashbox/balance', { currency, newAmount, password })
+  return data // CashBoxBalanceDto
+}
