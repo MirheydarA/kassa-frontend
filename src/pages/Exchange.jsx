@@ -38,6 +38,16 @@ function calcToAmount(fromCurrency, toCurrency, fromAmount, rate) {
   return amt * r
 }
 
+// Əks istiqamət: müştəri bəzən dəqiq nə qədər (məs. 5000$) istədiyini deyir - bu halda kassir
+// qarşı tərəfin (verəcəyi valyutanın) məbləğini yazır, digər tərəf ondan hesablanır.
+function calcFromAmount(fromCurrency, toCurrency, toAmount, rate) {
+  const amt = Number(toAmount) || 0
+  const r = Number(rate) || 0
+  if (!amt || !r) return 0
+  if (fromCurrency === 'RUB' && toCurrency === 'USD') return amt * r
+  return amt / r
+}
+
 export default function Exchange() {
   const qc = useQueryClient()
   const [tab, setTab] = useState('sell')
@@ -156,8 +166,10 @@ export default function Exchange() {
   )
 }
 
+const EMPTY_EXCHANGE_FORM = { clientName: '', fromAmount: '', toAmount: '', rate: '', note: '' }
+
 function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
-  const [form, setForm] = useState({ clientName: '', fromAmount: '', rate: '', note: '' })
+  const [form, setForm] = useState(EMPTY_EXCHANGE_FORM)
 
   const mutation = useMutation({
     mutationFn: createExchange,
@@ -165,12 +177,35 @@ function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
       toast.success('Mübadilə qeyd edildi')
       onDone()
       onClose()
-      setForm({ clientName: '', fromAmount: '', rate: '', note: '' })
+      setForm(EMPTY_EXCHANGE_FORM)
     },
     onError: () => toast.error('Xəta baş verdi')
   })
 
-  const toAmount = calcToAmount(tabDef.fromCurrency, tabDef.toCurrency, form.fromAmount, form.rate)
+  // Hər iki məbləğ sahəsi redaktə oluna bilir: hansını yazsan, digəri kursla ondan hesablanır.
+  function handleFromAmountChange(v) {
+    const toAmount = calcToAmount(tabDef.fromCurrency, tabDef.toCurrency, v, form.rate)
+    setForm((f) => ({ ...f, fromAmount: v, toAmount: toAmount || '' }))
+  }
+
+  function handleToAmountChange(v) {
+    const fromAmount = calcFromAmount(tabDef.fromCurrency, tabDef.toCurrency, v, form.rate)
+    setForm((f) => ({ ...f, toAmount: v, fromAmount: fromAmount || '' }))
+  }
+
+  function handleRateChange(rateStr) {
+    setForm((f) => {
+      if (f.fromAmount) {
+        const toAmount = calcToAmount(tabDef.fromCurrency, tabDef.toCurrency, f.fromAmount, rateStr)
+        return { ...f, rate: rateStr, toAmount: toAmount || '' }
+      }
+      if (f.toAmount) {
+        const fromAmount = calcFromAmount(tabDef.fromCurrency, tabDef.toCurrency, f.toAmount, rateStr)
+        return { ...f, rate: rateStr, fromAmount: fromAmount || '' }
+      }
+      return { ...f, rate: rateStr }
+    })
+  }
 
   function submit(e) {
     e.preventDefault()
@@ -197,15 +232,15 @@ function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
         </div>
         <div>
           <label className="label">Məbləğ ({tabDef.fromCurrency})</label>
-          <MoneyInput required value={form.fromAmount} onChange={(v) => setForm((f) => ({ ...f, fromAmount: v }))} />
+          <MoneyInput required value={form.fromAmount} onChange={handleFromAmountChange} />
         </div>
         <div>
           <label className="label">Kurs</label>
-          <input className="input" type="number" step="0.0001" required value={form.rate} onChange={(e) => setForm((f) => ({ ...f, rate: e.target.value }))} />
+          <input className="input" type="number" step="0.0001" required value={form.rate} onChange={(e) => handleRateChange(e.target.value)} />
         </div>
         <div>
           <label className="label">Məbləğ ({tabDef.toCurrency})</label>
-          <input className="input bg-paper" type="text" readOnly value={toAmount ? formatMoney(toAmount, tabDef.toCurrency) : ''} />
+          <MoneyInput required value={form.toAmount} onChange={handleToAmountChange} />
         </div>
         <div>
           <label className="label">Qeyd</label>
@@ -224,7 +259,8 @@ function EditExchangeModal({ ex, onClose, onDone }) {
   const [form, setForm] = useState(null)
 
   if (ex && !form) {
-    setForm({ fromAmount: ex.fromAmount, rate: ex.rate, note: ex.note ?? '' })
+    const toAmount = calcToAmount(ex.fromCurrency, ex.toCurrency, ex.fromAmount, ex.rate)
+    setForm({ fromAmount: ex.fromAmount, toAmount: toAmount || ex.toAmount, rate: ex.rate, note: ex.note ?? '' })
   }
 
   const mutation = useMutation({
@@ -242,7 +278,30 @@ function EditExchangeModal({ ex, onClose, onDone }) {
     onClose()
   }
 
-  const toAmount = ex && form ? calcToAmount(ex.fromCurrency, ex.toCurrency, form.fromAmount, form.rate) : 0
+  // Hər iki məbləğ sahəsi redaktə oluna bilir: hansını yazsan, digəri kursla ondan hesablanır.
+  function handleFromAmountChange(v) {
+    const toAmount = calcToAmount(ex.fromCurrency, ex.toCurrency, v, form.rate)
+    setForm((f) => ({ ...f, fromAmount: v, toAmount: toAmount || '' }))
+  }
+
+  function handleToAmountChange(v) {
+    const fromAmount = calcFromAmount(ex.fromCurrency, ex.toCurrency, v, form.rate)
+    setForm((f) => ({ ...f, toAmount: v, fromAmount: fromAmount || '' }))
+  }
+
+  function handleRateChange(rateStr) {
+    setForm((f) => {
+      if (f.fromAmount) {
+        const toAmount = calcToAmount(ex.fromCurrency, ex.toCurrency, f.fromAmount, rateStr)
+        return { ...f, rate: rateStr, toAmount: toAmount || '' }
+      }
+      if (f.toAmount) {
+        const fromAmount = calcFromAmount(ex.fromCurrency, ex.toCurrency, f.toAmount, rateStr)
+        return { ...f, rate: rateStr, fromAmount: fromAmount || '' }
+      }
+      return { ...f, rate: rateStr }
+    })
+  }
 
   function submit(e) {
     e.preventDefault()
@@ -255,15 +314,15 @@ function EditExchangeModal({ ex, onClose, onDone }) {
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="label">Məbləğ ({ex?.fromCurrency})</label>
-            <MoneyInput required value={form.fromAmount} onChange={(v) => setForm((f) => ({ ...f, fromAmount: v }))} />
+            <MoneyInput required value={form.fromAmount} onChange={handleFromAmountChange} />
           </div>
           <div>
             <label className="label">Kurs</label>
-            <input className="input" type="number" step="0.0001" required value={form.rate} onChange={(e) => setForm((f) => ({ ...f, rate: e.target.value }))} />
+            <input className="input" type="number" step="0.0001" required value={form.rate} onChange={(e) => handleRateChange(e.target.value)} />
           </div>
           <div>
             <label className="label">Məbləğ ({ex?.toCurrency})</label>
-            <input className="input bg-paper" type="text" readOnly value={toAmount ? formatMoney(toAmount, ex.toCurrency) : ''} />
+            <MoneyInput required value={form.toAmount} onChange={handleToAmountChange} />
           </div>
           <div>
             <label className="label">Qeyd</label>
