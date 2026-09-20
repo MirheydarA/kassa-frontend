@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Pencil } from 'lucide-react'
 import { getCashBoxBalance, getCashBoxTransactionsByDay } from '../api/cashbox'
 import { formatMoney, formatDate, CURRENCIES } from '../lib/format'
 import CurrencyBadge from '../components/CurrencyBadge'
 import RevertTransactionButton from '../components/RevertTransactionButton'
+import EditBalanceModal from '../components/EditBalanceModal'
 
 const TYPE_LABELS = {
   loan: 'Borc verildi',
@@ -25,6 +27,7 @@ export default function Dashboard() {
   const qc = useQueryClient()
   const [filters, setFilters] = useState({ currency: '', type: '', from: '', to: '' })
   const [dayPage, setDayPage] = useState(1)
+  const [editBalanceCurrency, setEditBalanceCurrency] = useState(null)
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['cashbox-balance'] })
@@ -67,11 +70,29 @@ export default function Dashboard() {
 
       <div className="mb-8 grid grid-cols-2 gap-4">
         <div className="card p-4 sm:p-5">
-          <div className="text-sm text-muted">Dollar kassası</div>
+          <div className="flex items-start justify-between">
+            <div className="text-sm text-muted">Dollar kassası</div>
+            <button
+              className="text-muted hover:text-ink"
+              title="Balansı redaktə et"
+              onClick={() => setEditBalanceCurrency('USD')}
+            >
+              <Pencil size={16} />
+            </button>
+          </div>
           <div className="mt-1 text-xl font-semibold text-usd sm:text-3xl">{formatMoney(balance?.usd, 'USD')}</div>
         </div>
         <div className="card p-4 sm:p-5">
-          <div className="text-sm text-muted">Rubl kassası</div>
+          <div className="flex items-start justify-between">
+            <div className="text-sm text-muted">Rubl kassası</div>
+            <button
+              className="text-muted hover:text-ink"
+              title="Balansı redaktə et"
+              onClick={() => setEditBalanceCurrency('RUB')}
+            >
+              <Pencil size={16} />
+            </button>
+          </div>
           <div className="mt-1 text-xl font-semibold text-rub sm:text-3xl">{formatMoney(balance?.rub, 'RUB')}</div>
         </div>
       </div>
@@ -174,6 +195,13 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <EditBalanceModal
+        currency={editBalanceCurrency}
+        currentAmount={editBalanceCurrency === 'USD' ? balance?.usd : balance?.rub}
+        onClose={() => setEditBalanceCurrency(null)}
+        onDone={invalidate}
+      />
     </div>
   )
 }

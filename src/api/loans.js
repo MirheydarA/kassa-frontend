@@ -1,10 +1,15 @@
 import { apiClient } from './client'
 
-export async function getLoans({ status, currency, page = 1, pageSize = 10 } = {}) {
+export async function getLoans({ currency, clientName, includeClosed = false, page = 1, pageSize = 1000 } = {}) {
   const { data } = await apiClient.get('/api/loans', {
-    params: { status, currency, page, pageSize }
+    params: { currency, clientName, includeClosed, page, pageSize }
   })
   return data // LoanDtoPagedResult
+}
+
+export async function getLoan(id) {
+  const { data } = await apiClient.get(`/api/loans/${id}`)
+  return data // LoanDto
 }
 
 export async function createLoan(payload) {

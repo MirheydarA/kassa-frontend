@@ -1,8 +1,15 @@
 import { apiClient } from './client'
 
-export async function getMyDebts({ currency, page = 1, pageSize = 10 } = {}) {
-  const { data } = await apiClient.get('/api/mydebts', { params: { currency, page, pageSize } })
+export async function getMyDebts({ currency, clientName, includeClosed = false, page = 1, pageSize = 1000 } = {}) {
+  const { data } = await apiClient.get('/api/mydebts', {
+    params: { currency, clientName, includeClosed, page, pageSize }
+  })
   return data // MyDebtDtoPagedResult
+}
+
+export async function getMyDebt(id) {
+  const { data } = await apiClient.get(`/api/mydebts/${id}`)
+  return data // MyDebtDto
 }
 
 export async function createMyDebt(payload) {

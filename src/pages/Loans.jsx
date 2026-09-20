@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, CircleDollarSign } from 'lucide-react'
-import { getLoans, createLoan, updateLoan, addLoanPayment } from '../api/loans'
+import { Plus, Pencil, CircleDollarSign, Search } from 'lucide-react'
+import { getLoans, createLoan } from '../api/loans'
 import { formatMoney, formatDate, CURRENCIES } from '../lib/format'
-import CurrencyBadge from '../components/CurrencyBadge'
 import Modal from '../components/Modal'
 import ClientAutocomplete from '../components/ClientAutocomplete'
 import MoneyInput from '../components/MoneyInput'
+import LoanEditModal from '../components/LoanEditModal'
+import LoanPayModal from '../components/LoanPayModal'
 
 const STATUS_LABELS = {
   open: 'Açıq',
@@ -25,70 +27,37 @@ const STATUS_STYLES = {
   default: 'border border-border bg-surface text-muted'
 }
 
-// Backend-in LoanStatus enum-una tam uyğun dəyərlər (filter üçün) - fərqli yazılışlar backend-də süzgəci sükutla keçirir
-const STATUS_FILTER_OPTIONS = [
-  { value: 'Open', label: 'Açıq' },
-  { value: 'PartiallyPaid', label: 'Qismən' },
-  { value: 'Closed', label: 'Bağlı' }
-]
-
-function dayKey(dateStr) {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
 export default function Loans() {
   const qc = useQueryClient()
-  const [filters, setFilters] = useState({ status: '', currency: '' })
-  const [dayPage, setDayPage] = useState(1)
+  const navigate = useNavigate()
+
+  const [searchInput, setSearchInput] = useState('')
+  const [clientName, setClientName] = useState('')
+  const [includeClosed, setIncludeClosed] = useState(false)
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editLoan, setEditLoan] = useState(null)
   const [payLoan, setPayLoan] = useState(null)
 
-  // Bütün (filtrlənmiş) borcları gətiririk ki, günlərə görə qruplaşdıraq və ümumi cəmi hesablayaq
-  const { data, isLoading } = useQuery({
-    queryKey: ['loans', filters],
-    queryFn: () => getLoans({ ...filters, page: 1, pageSize: 1000 })
+  // Hərfləri yazdıqca deyil, son klaviş buraxılandan 1 saniyə sonra axtarış edir
+  useEffect(() => {
+    const t = setTimeout(() => setClientName(searchInput.trim()), 1000)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
+  const usdQuery = useQuery({
+    queryKey: ['loans', 'USD', clientName, includeClosed],
+    queryFn: () => getLoans({ currency: 'USD', clientName: clientName || undefined, includeClosed })
   })
-
-  const allItems = data?.items ?? []
-
-  // Ümumi cəmlər: valyutaya görə ayrı-ayrı (qalıq borc üzrə)
-  const totals = allItems.reduce(
-    (acc, l) => {
-      if (l.currency === 'USD') acc.usd += Number(l.remainingAmount ?? 0)
-      else if (l.currency === 'RUB') acc.rub += Number(l.remainingAmount ?? 0)
-      return acc
-    },
-    { usd: 0, rub: 0 }
-  )
-
-  // Günlərə görə qruplaşdırma və gün-əsaslı səhifələmə
-  const dayGroups = []
-  for (const item of allItems) {
-    const key = dayKey(item.createdAt)
-    let group = dayGroups.find((g) => g.key === key)
-    if (!group) {
-      group = { key, items: [] }
-      dayGroups.push(group)
-    }
-    group.items.push(item)
-  }
-
-  const totalDayPages = Math.max(1, dayGroups.length)
-  const currentDayGroup = dayGroups[dayPage - 1]
-  const visibleItems = currentDayGroup?.items ?? []
+  const rubQuery = useQuery({
+    queryKey: ['loans', 'RUB', clientName, includeClosed],
+    queryFn: () => getLoans({ currency: 'RUB', clientName: clientName || undefined, includeClosed })
+  })
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['loans'] })
     qc.invalidateQueries({ queryKey: ['cashbox-balance'] })
-    qc.invalidateQueries({ queryKey: ['cashbox-transactions'] })
-  }
-
-  function updateFilter(key, val) {
-    setDayPage(1)
-    setFilters((f) => ({ ...f, [key]: val }))
+    qc.invalidateQueries({ queryKey: ['cashbox-transactions-by-day'] })
   }
 
   return (
@@ -100,50 +69,80 @@ export default function Loans() {
         </button>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div>
-          <label className="label">Valyuta</label>
-          <select className="input !w-40" value={filters.currency} onChange={(e) => updateFilter('currency', e.target.value)}>
-            <option value="">Hamısı</option>
-            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+      <div className="mb-4 flex flex-wrap items-end gap-4">
+        <div className="w-full max-w-xs">
+          <label className="label">Müştəriyə görə axtarış</label>
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              className="input !pl-9"
+              placeholder="Müştəri adı…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
         </div>
-        <div>
-          <label className="label">Status</label>
-          <select className="input !w-44" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
-            <option value="">Hamısı</option>
-            {STATUS_FILTER_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </div>
+        <label className="flex items-center gap-2 pb-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-border"
+            checked={includeClosed}
+            onChange={(e) => setIncludeClosed(e.target.checked)}
+          />
+          Ödənilmiş borcları da göstər
+        </label>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <LoanColumn
+          title="Dollar (USD)"
+          items={usdQuery.data?.items}
+          isLoading={usdQuery.isLoading}
+          onRowClick={(id) => navigate(`/loans/${id}`)}
+          onPay={setPayLoan}
+          onEdit={setEditLoan}
+        />
+        <LoanColumn
+          title="Rubl (RUB)"
+          items={rubQuery.data?.items}
+          isLoading={rubQuery.isLoading}
+          onRowClick={(id) => navigate(`/loans/${id}`)}
+          onPay={setPayLoan}
+          onEdit={setEditLoan}
+        />
+      </div>
+
+      <CreateLoanModal open={createOpen} onClose={() => setCreateOpen(false)} onDone={invalidate} />
+      <LoanEditModal loan={editLoan} onClose={() => setEditLoan(null)} onDone={invalidate} />
+      <LoanPayModal loan={payLoan} onClose={() => setPayLoan(null)} onDone={invalidate} />
+    </div>
+  )
+}
+
+function LoanColumn({ title, items, isLoading, onRowClick, onPay, onEdit }) {
+  const list = items ?? []
+  const totalRemaining = list.reduce((sum, l) => sum + Number(l.remainingAmount ?? 0), 0)
+  const currency = list[0]?.currency ?? (title.includes('USD') ? 'USD' : 'RUB')
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="border-b border-border bg-paper px-4 py-3 text-sm font-semibold text-ink">{title}</div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[480px] text-sm">
           <thead>
             <tr className="border-b border-border bg-paper text-left text-muted">
-              <th className="px-4 py-3 font-medium">Tarix</th>
               <th className="px-4 py-3 font-medium">Müştəri</th>
-              <th className="px-4 py-3 font-medium">Valyuta</th>
-              <th className="px-4 py-3 text-right font-medium">Məbləğ</th>
               <th className="px-4 py-3 text-right font-medium">Qalıq</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
-            {!isLoading && (allItems.length ?? 0) === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Borc tapılmadı</td></tr>
+            {isLoading && <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
+            {!isLoading && list.length === 0 && (
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">Borc tapılmadı</td></tr>
             )}
-            {!isLoading && allItems.length > 0 && (
-              <tr className="bg-paper">
-                <td colSpan={7} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
-                  {currentDayGroup?.key ?? '—'}
-                </td>
-              </tr>
-            )}
-            {visibleItems.map((loan) => {
+            {list.map((loan) => {
               const rawStatus = (loan.status ?? '').toLowerCase()
               const normalizedStatus = rawStatus === 'active' || rawStatus === 'open'
                 ? 'open'
@@ -155,18 +154,16 @@ export default function Loans() {
 
               const statusLabel = STATUS_LABELS[rawStatus] || STATUS_LABELS[normalizedStatus] || loan.status
               const statusClassName = STATUS_STYLES[normalizedStatus] || STATUS_STYLES.default
-              const rowClassName = normalizedStatus === 'closed' ? 'border-b border-border last:border-0 align-top bg-slate-50 opacity-80' : 'border-b border-border last:border-0 align-top'
+              const rowClassName = normalizedStatus === 'closed'
+                ? 'cursor-pointer border-b border-border last:border-0 align-top bg-slate-50 opacity-80 hover:opacity-100'
+                : 'cursor-pointer border-b border-border last:border-0 align-top hover:bg-paper'
 
               return (
-                <tr key={loan.id} className={rowClassName}>
-                  <td className="px-4 py-3 text-muted">{formatDate(loan.createdAt)}</td>
+                <tr key={loan.id} className={rowClassName} onClick={() => onRowClick(loan.id)}>
                   <td className="px-4 py-3">
                     <div className="font-medium text-ink">{loan.clientName}</div>
-                    {loan.note && <div className="text-xs text-muted">{loan.note}</div>}
-                    {loan.exchangeRate && <div className="text-xs text-muted">Kurs: {loan.exchangeRate}</div>}
+                    <div className="text-xs text-muted">{formatDate(loan.createdAt)}</div>
                   </td>
-                  <td className="px-4 py-3"><CurrencyBadge currency={loan.currency} /></td>
-                  <td className="px-4 py-3 text-right">{formatMoney(loan.amount, loan.currency)}</td>
                   <td className="px-4 py-3 text-right font-medium text-ink">{formatMoney(loan.remainingAmount, loan.currency)}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusClassName}`}>
@@ -175,10 +172,18 @@ export default function Loans() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
-                      <button className="btn-secondary !px-2 !py-1" title="Ödəniş qeyd et" onClick={() => setPayLoan(loan)}>
+                      <button
+                        className="btn-secondary !px-2 !py-1"
+                        title="Ödəniş qeyd et"
+                        onClick={(e) => { e.stopPropagation(); onPay(loan) }}
+                      >
                         <CircleDollarSign size={16} />
                       </button>
-                      <button className="btn-secondary !px-2 !py-1" title="Redaktə et" onClick={() => setEditLoan(loan)}>
+                      <button
+                        className="btn-secondary !px-2 !py-1"
+                        title="Redaktə et"
+                        onClick={(e) => { e.stopPropagation(); onEdit(loan) }}
+                      >
                         <Pencil size={16} />
                       </button>
                     </div>
@@ -188,46 +193,13 @@ export default function Loans() {
             })}
           </tbody>
         </table>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted">
-          <span>{dayGroups.length} gün</span>
-          <div className="flex items-center gap-1">
-            {/* dayGroups[0] ən son gündür (bu gün), böyük indeks daha köhnə günə uyğundur.
-                "Əvvəlki gün" -> daha köhnə günə (indeksi artır), "Növbəti gün" -> daha yeni günə (indeksi azaldır) */}
-            <button
-              className="btn-secondary !px-2 !py-1"
-              disabled={dayPage >= totalDayPages}
-              onClick={() => setDayPage((p) => Math.min(totalDayPages, p + 1))}
-            >
-              Əvvəlki gün
-            </button>
-            <span className="px-2 text-ink">{dayGroups.length === 0 ? 0 : dayPage} / {totalDayPages}</span>
-            <button
-              className="btn-secondary !px-2 !py-1"
-              disabled={dayPage <= 1}
-              onClick={() => setDayPage((p) => Math.max(1, p - 1))}
-            >
-              Növbəti gün
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 border-t border-border px-4 py-4">
-          <div className="rounded bg-paper px-3 py-2">
-            <div className="text-xs text-muted">Ümumi qalıq borc (USD)</div>
-            <div className="mt-1 text-lg font-semibold text-usd">{formatMoney(totals.usd, 'USD')}</div>
-          </div>
-          <div className="rounded bg-paper px-3 py-2">
-            <div className="text-xs text-muted">Ümumi qalıq borc (RUB)</div>
-            <div className="mt-1 text-lg font-semibold text-rub">{formatMoney(totals.rub, 'RUB')}</div>
-          </div>
+      </div>
+      <div className="border-t border-border px-4 py-3">
+        <div className="rounded bg-paper px-3 py-2">
+          <div className="text-xs text-muted">Ümumi qalıq borc</div>
+          <div className="mt-1 text-lg font-semibold text-ink">{formatMoney(totalRemaining, currency)}</div>
         </div>
       </div>
-
-      <CreateLoanModal open={createOpen} onClose={() => setCreateOpen(false)} onDone={invalidate} />
-      <EditLoanModal loan={editLoan} onClose={() => setEditLoan(null)} onDone={invalidate} />
-      <PayLoanModal loan={payLoan} onClose={() => setPayLoan(null)} onDone={invalidate} />
     </div>
   )
 }
@@ -289,117 +261,6 @@ function CreateLoanModal({ open, onClose, onDone }) {
           <button type="submit" className="btn-primary" disabled={mutation.isPending}>Yadda saxla</button>
         </div>
       </form>
-    </Modal>
-  )
-}
-
-function EditLoanModal({ loan, onClose, onDone }) {
-  const [form, setForm] = useState(null)
-
-  if (loan && !form) {
-    setForm({ amount: loan.amount, exchangeRate: loan.exchangeRate ?? '', note: loan.note ?? '' })
-  }
-
-  const mutation = useMutation({
-    mutationFn: (payload) => updateLoan(loan.id, payload),
-    onSuccess: () => {
-      toast.success('Borc yeniləndi')
-      onDone()
-      close()
-    },
-    onError: () => toast.error('Xəta baş verdi')
-  })
-
-  function close() {
-    setForm(null)
-    onClose()
-  }
-
-  function submit(e) {
-    e.preventDefault()
-    mutation.mutate({
-      amount: Number(form.amount),
-      exchangeRate: form.exchangeRate ? Number(form.exchangeRate) : null,
-      note: form.note || null
-    })
-  }
-
-  return (
-    <Modal open={!!loan} onClose={close} title={`Redaktə: ${loan?.clientName ?? ''}`}>
-      {form && (
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="label">Məbləğ</label>
-            <MoneyInput required value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
-          </div>
-          {loan?.currency === 'USD' && (
-            <div>
-              <label className="label">Kurs</label>
-              <input className="input" type="number" step="0.0001" value={form.exchangeRate} onChange={(e) => setForm((f) => ({ ...f, exchangeRate: e.target.value }))} />
-            </div>
-          )}
-          <div>
-            <label className="label">Qeyd</label>
-            <input className="input" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" className="btn-secondary" onClick={close}>Ləğv et</button>
-            <button type="submit" className="btn-primary" disabled={mutation.isPending}>Yadda saxla</button>
-          </div>
-        </form>
-      )}
-    </Modal>
-  )
-}
-
-function PayLoanModal({ loan, onClose, onDone }) {
-  const [form, setForm] = useState({ amount: '', note: '' })
-
-  const mutation = useMutation({
-    mutationFn: (payload) => addLoanPayment(loan.id, payload),
-    onSuccess: () => {
-      toast.success('Ödəniş qeyd edildi')
-      onDone()
-      close()
-    },
-    onError: () => toast.error('Xəta baş verdi')
-  })
-
-  function close() {
-    setForm({ amount: '', note: '' })
-    onClose()
-  }
-
-  function submit(e) {
-    e.preventDefault()
-    mutation.mutate({ amount: Number(form.amount), note: form.note || null })
-  }
-
-  return (
-    <Modal open={!!loan} onClose={close} title={`Ödəniş: ${loan?.clientName ?? ''}`}>
-      {loan && (
-        <form onSubmit={submit} className="space-y-4">
-          <div className="rounded bg-paper px-3 py-2 text-sm text-muted">
-            Qalıq: <span className="font-medium text-ink">{formatMoney(loan.remainingAmount, loan.currency)}</span>
-          </div>
-          <div>
-            <label className="label">Qaytarılan məbləğ</label>
-            <MoneyInput
-              required
-              value={form.amount}
-              onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
-            />
-          </div>
-          <div>
-            <label className="label">Qeyd</label>
-            <input className="input" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" className="btn-secondary" onClick={close}>Ləğv et</button>
-            <button type="submit" className="btn-primary" disabled={mutation.isPending}>Yadda saxla</button>
-          </div>
-        </form>
-      )}
     </Modal>
   )
 }
