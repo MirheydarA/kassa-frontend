@@ -1,9 +1,10 @@
 export function formatMoney(value, currency) {
   const n = Number(value ?? 0)
-  const formatted = n.toLocaleString('az-AZ', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-  if (currency === 'USD') return `$${formatted}`
-  if (currency === 'RUB') return `${formatted} ₽`
-  return formatted
+  const sign = n < 0 ? '-' : ''
+  const formatted = Math.abs(n).toLocaleString('az-AZ', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+  if (currency === 'USD') return `${sign}$${formatted}`
+  if (currency === 'RUB') return `${sign}${formatted} ₽`
+  return `${sign}${formatted}`
 }
 
 export function formatDate(value) {

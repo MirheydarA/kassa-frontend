@@ -30,12 +30,14 @@ const TAB_TONE = {
   }
 }
 
+// Nəticə həmişə tam ədədə yuvarlaqlaşdırılır - MoneyInput yalnız tam ədədlərlə işləyir,
+// və kəsr kurs (məs. 83.2) bölündükdə uzun onluq kəsr yarada bilər.
 function calcToAmount(fromCurrency, toCurrency, fromAmount, rate) {
   const amt = Number(fromAmount) || 0
   const r = Number(rate) || 0
   if (!amt || !r) return 0
-  if (fromCurrency === 'RUB' && toCurrency === 'USD') return amt / r
-  return amt * r
+  if (fromCurrency === 'RUB' && toCurrency === 'USD') return Math.round(amt / r)
+  return Math.round(amt * r)
 }
 
 // Əks istiqamət: müştəri bəzən dəqiq nə qədər (məs. 5000$) istədiyini deyir - bu halda kassir
@@ -44,8 +46,8 @@ function calcFromAmount(fromCurrency, toCurrency, toAmount, rate) {
   const amt = Number(toAmount) || 0
   const r = Number(rate) || 0
   if (!amt || !r) return 0
-  if (fromCurrency === 'RUB' && toCurrency === 'USD') return amt * r
-  return amt / r
+  if (fromCurrency === 'RUB' && toCurrency === 'USD') return Math.round(amt * r)
+  return Math.round(amt / r)
 }
 
 export default function Exchange() {
@@ -242,12 +244,12 @@ function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
         <div>
           <label className="label">Məbləğ ({tabDef.fromCurrency})</label>
           <MoneyInput required disabled={!form.rate} value={form.fromAmount} onChange={handleFromAmountChange} />
-          {!form.rate && <div className="mt-1 text-xs text-muted">Əvvəlcə kursu daxil edin</div>}
+          <div className="mt-1 h-4 text-xs text-muted">{!form.rate ? 'Əvvəlcə kursu daxil edin' : ' '}</div>
         </div>
         <div>
           <label className="label">Məbləğ ({tabDef.toCurrency})</label>
           <MoneyInput required disabled={!form.rate} value={form.toAmount} onChange={handleToAmountChange} />
-          {!form.rate && <div className="mt-1 text-xs text-muted">Əvvəlcə kursu daxil edin</div>}
+          <div className="mt-1 h-4 text-xs text-muted">{!form.rate ? 'Əvvəlcə kursu daxil edin' : ' '}</div>
         </div>
         <div>
           <label className="label">Qeyd</label>
@@ -330,12 +332,12 @@ function EditExchangeModal({ ex, onClose, onDone }) {
           <div>
             <label className="label">Məbləğ ({ex?.fromCurrency})</label>
             <MoneyInput required disabled={!form.rate} value={form.fromAmount} onChange={handleFromAmountChange} />
-            {!form.rate && <div className="mt-1 text-xs text-muted">Əvvəlcə kursu daxil edin</div>}
+            <div className="mt-1 h-4 text-xs text-muted">{!form.rate ? 'Əvvəlcə kursu daxil edin' : ' '}</div>
           </div>
           <div>
             <label className="label">Məbləğ ({ex?.toCurrency})</label>
             <MoneyInput required disabled={!form.rate} value={form.toAmount} onChange={handleToAmountChange} />
-            {!form.rate && <div className="mt-1 text-xs text-muted">Əvvəlcə kursu daxil edin</div>}
+            <div className="mt-1 h-4 text-xs text-muted">{!form.rate ? 'Əvvəlcə kursu daxil edin' : ' '}</div>
           </div>
           <div>
             <label className="label">Qeyd</label>
