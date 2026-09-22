@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pencil } from 'lucide-react'
 import { getCashBoxBalance, getCashBoxTransactionsByDay } from '../api/cashbox'
-import { formatMoney, formatDate, CURRENCIES } from '../lib/format'
-import CurrencyBadge from '../components/CurrencyBadge'
+import { formatMoney, formatDate } from '../lib/format'
 import RevertTransactionButton from '../components/RevertTransactionButton'
 import EditBalanceModal from '../components/EditBalanceModal'
 
@@ -25,9 +24,14 @@ function formatDayKey(dateStr) {
 
 export default function Dashboard() {
   const qc = useQueryClient()
-  const [filters, setFilters] = useState({ currency: '', type: '', from: '', to: '' })
-  const [dayPage, setDayPage] = useState(1)
+  const [filters, setFilters] = useState({ type: '', from: '', to: '' })
   const [editBalanceCurrency, setEditBalanceCurrency] = useState(null)
+
+  const { data: balance } = useQuery({
+    queryKey: ['cashbox-balance'],
+    queryFn: getCashBoxBalance,
+    refetchInterval: 30_000
+  })
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['cashbox-balance'] })
@@ -38,29 +42,7 @@ export default function Dashboard() {
     qc.invalidateQueries({ queryKey: ['expenses'] })
   }
 
-  const { data: balance } = useQuery({
-    queryKey: ['cashbox-balance'],
-    queryFn: getCashBoxBalance,
-    refetchInterval: 30_000
-  })
-
-  // Gün-gün: backend bir çağırışda yalnız bir günün hərəkətlərini qaytarır (böyük datasetlərdə frontend-i yükləməmək üçün)
-  const { data, isLoading } = useQuery({
-    queryKey: ['cashbox-transactions-by-day', filters, dayPage],
-    queryFn: () =>
-      getCashBoxTransactionsByDay({
-        currency: filters.currency || undefined,
-        type: filters.type || undefined,
-        from: filters.from || undefined,
-        to: filters.to || undefined,
-        dayPage
-      })
-  })
-
-  const totalDayPages = Math.max(1, data?.totalDays ?? 1)
-
   function updateFilter(key, val) {
-    setDayPage(1)
     setFilters((f) => ({ ...f, [key]: val }))
   }
 
@@ -68,45 +50,7 @@ export default function Dashboard() {
     <div>
       <h1 className="mb-6 text-2xl font-semibold text-ink">Kassa</h1>
 
-      <div className="mb-8 grid grid-cols-2 gap-4">
-        <div className="card p-4 sm:p-5">
-          <div className="flex items-start justify-between">
-            <div className="text-sm text-muted">Dollar kassası</div>
-            <button
-              className="text-muted hover:text-ink"
-              title="Balansı redaktə et"
-              onClick={() => setEditBalanceCurrency('USD')}
-            >
-              <Pencil size={16} />
-            </button>
-          </div>
-          <div className="mt-1 text-xl font-semibold text-usd sm:text-3xl">{formatMoney(balance?.usd, 'USD')}</div>
-        </div>
-        <div className="card p-4 sm:p-5">
-          <div className="flex items-start justify-between">
-            <div className="text-sm text-muted">Rubl kassası</div>
-            <button
-              className="text-muted hover:text-ink"
-              title="Balansı redaktə et"
-              onClick={() => setEditBalanceCurrency('RUB')}
-            >
-              <Pencil size={16} />
-            </button>
-          </div>
-          <div className="mt-1 text-xl font-semibold text-rub sm:text-3xl">{formatMoney(balance?.rub, 'RUB')}</div>
-        </div>
-      </div>
-
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div>
-          <label className="label">Valyuta</label>
-          <select className="input !w-40" value={filters.currency} onChange={(e) => updateFilter('currency', e.target.value)}>
-            <option value="">Hamısı</option>
-            {CURRENCIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
         <div>
           <label className="label">Tip</label>
           <select className="input !w-48" value={filters.type} onChange={(e) => updateFilter('type', e.target.value)}>
@@ -126,15 +70,76 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <CashboxColumn
+          currency="USD"
+          label="Dollar kassası"
+          balanceAmount={balance?.usd}
+          filters={filters}
+          onEditBalance={() => setEditBalanceCurrency('USD')}
+          invalidate={invalidate}
+        />
+        <CashboxColumn
+          currency="RUB"
+          label="Rubl kassası"
+          balanceAmount={balance?.rub}
+          filters={filters}
+          onEditBalance={() => setEditBalanceCurrency('RUB')}
+          invalidate={invalidate}
+        />
+      </div>
+
+      <EditBalanceModal
+        currency={editBalanceCurrency}
+        currentAmount={editBalanceCurrency === 'USD' ? balance?.usd : balance?.rub}
+        onClose={() => setEditBalanceCurrency(null)}
+        onDone={invalidate}
+      />
+    </div>
+  )
+}
+
+function CashboxColumn({ currency, label, balanceAmount, filters, onEditBalance, invalidate }) {
+  const [dayPage, setDayPage] = useState(1)
+
+  useEffect(() => {
+    setDayPage(1)
+  }, [filters])
+
+  // Gün-gün: backend bir çağırışda yalnız bir günün hərəkətlərini qaytarır (böyük datasetlərdə frontend-i yükləməmək üçün)
+  const { data, isLoading } = useQuery({
+    queryKey: ['cashbox-transactions-by-day', currency, filters, dayPage],
+    queryFn: () =>
+      getCashBoxTransactionsByDay({
+        currency,
+        type: filters.type || undefined,
+        from: filters.from || undefined,
+        to: filters.to || undefined,
+        dayPage
+      })
+  })
+
+  const totalDayPages = Math.max(1, data?.totalDays ?? 1)
+  const valueClass = currency === 'USD' ? 'text-usd' : 'text-rub'
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex items-center justify-between border-b border-border bg-paper px-4 py-3">
+        <div>
+          <div className="text-sm text-muted">{label}</div>
+          <div className={`mt-1 text-xl font-semibold ${valueClass}`}>{formatMoney(balanceAmount, currency)}</div>
+        </div>
+        <button className="text-muted hover:text-ink" title="Balansı redaktə et" onClick={onEditBalance}>
+          <Pencil size={16} />
+        </button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-border bg-paper text-left text-muted">
               <th className="px-4 py-3 font-medium">Tarix</th>
-              <th className="px-4 py-3 font-medium">Valyuta</th>
               <th className="px-4 py-3 font-medium">Tip</th>
-              <th className="px-4 py-3 font-medium">Mənbə</th>
               <th className="px-4 py-3 font-medium">Qeyd</th>
               <th className="px-4 py-3 text-right font-medium">Məbləğ</th>
               <th className="px-4 py-3"></th>
@@ -142,14 +147,14 @@ export default function Dashboard() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>
             )}
             {!isLoading && (data?.items?.length ?? 0) === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Əməliyyat tapılmadı</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted">Əməliyyat tapılmadı</td></tr>
             )}
             {!isLoading && (data?.items?.length ?? 0) > 0 && (
               <tr className="bg-paper">
-                <td colSpan={7} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                <td colSpan={5} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
                   {formatDayKey(data?.date)}
                 </td>
               </tr>
@@ -157,9 +162,7 @@ export default function Dashboard() {
             {data?.items?.map((tx) => (
               <tr key={tx.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 text-muted">{formatDate(tx.createdAt)}</td>
-                <td className="px-4 py-3"><CurrencyBadge currency={tx.currency} /></td>
                 <td className="px-4 py-3">{TYPE_LABELS[tx.type] || tx.type}</td>
-                <td className="px-4 py-3 text-muted">{tx.source || '—'}</td>
                 <td className="px-4 py-3 text-muted">{tx.description || '—'}</td>
                 <td className={`px-4 py-3 text-right font-medium ${tx.amount < 0 ? 'text-danger' : 'text-brand'}`}>
                   {tx.amount > 0 ? '+' : ''}{formatMoney(tx.amount, tx.currency)}
@@ -171,37 +174,29 @@ export default function Dashboard() {
             ))}
           </tbody>
         </table>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted">
-          <span>{data?.totalDays ?? 0} gün</span>
-          <div className="flex items-center gap-1">
-            {/* dayPage=1 ən son gündür (bu gün), böyük dayPage daha köhnə günə uyğundur */}
-            <button
-              className="btn-secondary !px-2 !py-1"
-              disabled={dayPage >= totalDayPages}
-              onClick={() => setDayPage((p) => Math.min(totalDayPages, p + 1))}
-            >
-              Əvvəlki gün
-            </button>
-            <span className="px-2 text-ink">{(data?.totalDays ?? 0) === 0 ? 0 : dayPage} / {totalDayPages}</span>
-            <button
-              className="btn-secondary !px-2 !py-1"
-              disabled={dayPage <= 1}
-              onClick={() => setDayPage((p) => Math.max(1, p - 1))}
-            >
-              Növbəti gün
-            </button>
-          </div>
-        </div>
       </div>
 
-      <EditBalanceModal
-        currency={editBalanceCurrency}
-        currentAmount={editBalanceCurrency === 'USD' ? balance?.usd : balance?.rub}
-        onClose={() => setEditBalanceCurrency(null)}
-        onDone={invalidate}
-      />
+      <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted">
+        <span>{data?.totalDays ?? 0} gün</span>
+        <div className="flex items-center gap-1">
+          {/* dayPage=1 ən son gündür (bu gün), böyük dayPage daha köhnə günə uyğundur */}
+          <button
+            className="btn-secondary !px-2 !py-1"
+            disabled={dayPage >= totalDayPages}
+            onClick={() => setDayPage((p) => Math.min(totalDayPages, p + 1))}
+          >
+            Əvvəlki gün
+          </button>
+          <span className="px-2 text-ink">{(data?.totalDays ?? 0) === 0 ? 0 : dayPage} / {totalDayPages}</span>
+          <button
+            className="btn-secondary !px-2 !py-1"
+            disabled={dayPage <= 1}
+            onClick={() => setDayPage((p) => Math.max(1, p - 1))}
+          >
+            Növbəti gün
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
