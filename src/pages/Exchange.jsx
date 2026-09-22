@@ -236,16 +236,18 @@ function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
           />
         </div>
         <div>
-          <label className="label">Məbləğ ({tabDef.fromCurrency})</label>
-          <MoneyInput required value={form.fromAmount} onChange={handleFromAmountChange} />
+          <label className="label">Kurs</label>
+          <input className="input" type="number" step="0.0001" required autoFocus value={form.rate} onChange={(e) => handleRateChange(e.target.value)} />
         </div>
         <div>
-          <label className="label">Kurs</label>
-          <input className="input" type="number" step="0.0001" required value={form.rate} onChange={(e) => handleRateChange(e.target.value)} />
+          <label className="label">Məbləğ ({tabDef.fromCurrency})</label>
+          <MoneyInput required disabled={!form.rate} value={form.fromAmount} onChange={handleFromAmountChange} />
+          {!form.rate && <div className="mt-1 text-xs text-muted">Əvvəlcə kursu daxil edin</div>}
         </div>
         <div>
           <label className="label">Məbləğ ({tabDef.toCurrency})</label>
-          <MoneyInput required value={form.toAmount} onChange={handleToAmountChange} />
+          <MoneyInput required disabled={!form.rate} value={form.toAmount} onChange={handleToAmountChange} />
+          {!form.rate && <div className="mt-1 text-xs text-muted">Əvvəlcə kursu daxil edin</div>}
         </div>
         <div>
           <label className="label">Qeyd</label>
@@ -322,16 +324,18 @@ function EditExchangeModal({ ex, onClose, onDone }) {
       {form && (
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="label">Məbləğ ({ex?.fromCurrency})</label>
-            <MoneyInput required value={form.fromAmount} onChange={handleFromAmountChange} />
-          </div>
-          <div>
             <label className="label">Kurs</label>
             <input className="input" type="number" step="0.0001" required value={form.rate} onChange={(e) => handleRateChange(e.target.value)} />
           </div>
           <div>
+            <label className="label">Məbləğ ({ex?.fromCurrency})</label>
+            <MoneyInput required disabled={!form.rate} value={form.fromAmount} onChange={handleFromAmountChange} />
+            {!form.rate && <div className="mt-1 text-xs text-muted">Əvvəlcə kursu daxil edin</div>}
+          </div>
+          <div>
             <label className="label">Məbləğ ({ex?.toCurrency})</label>
-            <MoneyInput required value={form.toAmount} onChange={handleToAmountChange} />
+            <MoneyInput required disabled={!form.rate} value={form.toAmount} onChange={handleToAmountChange} />
+            {!form.rate && <div className="mt-1 text-xs text-muted">Əvvəlcə kursu daxil edin</div>}
           </div>
           <div>
             <label className="label">Qeyd</label>
