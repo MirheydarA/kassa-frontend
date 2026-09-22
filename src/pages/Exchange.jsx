@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, ArrowRight, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
-import { getExchanges, createExchange, updateExchange } from '../api/exchange'
+import { getExchanges, createExchange, updateExchange, getExchangeProfitSummary } from '../api/exchange'
 import { formatMoney, formatDate } from '../lib/format'
 import CurrencyBadge from '../components/CurrencyBadge'
 import Pagination from '../components/Pagination'
@@ -66,10 +66,17 @@ export default function Exchange() {
     queryFn: () => getExchanges({ fromCurrency: activeTab.fromCurrency, page, pageSize })
   })
 
+  const { data: profitSummary } = useQuery({
+    queryKey: ['exchange-profit-summary'],
+    queryFn: getExchangeProfitSummary
+  })
+
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['exchange'] })
+    qc.invalidateQueries({ queryKey: ['exchange-profit-summary'] })
     qc.invalidateQueries({ queryKey: ['cashbox-balance'] })
     qc.invalidateQueries({ queryKey: ['cashbox-transactions'] })
+    qc.invalidateQueries({ queryKey: ['cashbox-transactions-by-day'] })
   }
 
   function switchTab(key) {
@@ -84,6 +91,13 @@ export default function Exchange() {
         <button className="btn-primary" onClick={() => setCreateOpen(true)}>
           <Plus size={16} /> Yeni mübadilə
         </button>
+      </div>
+
+      <div className="card mb-6 max-w-xs p-4">
+        <div className="text-sm text-muted">Cəmi realizə olunmuş qazanc</div>
+        <div className="mt-1 text-xl font-semibold text-brand">
+          {formatMoney(profitSummary?.totalRealizedProfit ?? 0, 'RUB')}
+        </div>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:max-w-md">
@@ -118,21 +132,22 @@ export default function Exchange() {
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[700px] text-sm">
+        <table className="w-full min-w-[820px] text-sm">
           <thead>
             <tr className="border-b border-border bg-paper text-left text-muted">
               <th className="px-4 py-3 font-medium">Tarix</th>
               <th className="px-4 py-3 font-medium">Müştəri</th>
               <th className="px-4 py-3 font-medium">Əməliyyat</th>
               <th className="px-4 py-3 text-right font-medium">Kurs</th>
+              <th className="px-4 py-3 text-right font-medium">Qazanc</th>
               <th className="px-4 py-3 font-medium">Qeyd</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
+            {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
             {!isLoading && (data?.items?.length ?? 0) === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">Mübadilə tapılmadı</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Mübadilə tapılmadı</td></tr>
             )}
             {data?.items?.map((ex) => (
               <tr key={ex.id} className="border-b border-border last:border-0">
@@ -148,6 +163,11 @@ export default function Exchange() {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right">{ex.rate}</td>
+                <td className={`px-4 py-3 text-right font-medium ${
+                  ex.realizedProfit == null ? 'text-muted' : ex.realizedProfit < 0 ? 'text-danger' : 'text-brand'
+                }`}>
+                  {ex.realizedProfit == null ? '—' : formatMoney(ex.realizedProfit, 'RUB')}
+                </td>
                 <td className="px-4 py-3 text-muted">{ex.note || '—'}</td>
                 <td className="px-4 py-3">
                   <button className="btn-secondary !px-2 !py-1" title="Redaktə et" onClick={() => setEditEx(ex)}>
