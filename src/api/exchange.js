@@ -16,3 +16,8 @@ export async function updateExchange(id, payload) {
   const { data } = await apiClient.put(`/api/exchange/${id}`, payload)
   return data
 }
+
+export async function getExchangeProfitSummary() {
+  const { data } = await apiClient.get('/api/exchange/profit-summary')
+  return data // { totalRealizedProfit }
+}
