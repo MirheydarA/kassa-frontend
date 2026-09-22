@@ -94,7 +94,7 @@ export default function Exchange() {
       </div>
 
       <div className="card mb-6 max-w-xs p-4">
-        <div className="text-sm text-muted">Cəmi realizə olunmuş qazanc</div>
+        <div className="text-sm text-muted">Cəmi qazanc</div>
         <div className="mt-1 text-xl font-semibold text-brand">
           {formatMoney(profitSummary?.totalRealizedProfit ?? 0, 'RUB')}
         </div>
@@ -136,7 +136,6 @@ export default function Exchange() {
           <thead>
             <tr className="border-b border-border bg-paper text-left text-muted">
               <th className="px-4 py-3 font-medium">Tarix</th>
-              <th className="px-4 py-3 font-medium">Müştəri</th>
               <th className="px-4 py-3 font-medium">Əməliyyat</th>
               <th className="px-4 py-3 text-right font-medium">Kurs</th>
               <th className="px-4 py-3 text-right font-medium">Qazanc</th>
@@ -152,7 +151,6 @@ export default function Exchange() {
             {data?.items?.map((ex) => (
               <tr key={ex.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 text-muted">{formatDate(ex.createdAt)}</td>
-                <td className="px-4 py-3 font-medium text-ink">{ex.clientName}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span>{formatMoney(ex.fromAmount, ex.fromCurrency)}</span>
