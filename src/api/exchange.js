@@ -21,3 +21,8 @@ export async function getExchangeProfitSummary() {
   const { data } = await apiClient.get('/api/exchange/profit-summary')
   return data // { totalRealizedProfit }
 }
+
+export async function getExchangeLots() {
+  const { data } = await apiClient.get('/api/exchange/lots')
+  return data // CurrencyLotDto[], ən köhnədən yeniyə sıralanıb
+}

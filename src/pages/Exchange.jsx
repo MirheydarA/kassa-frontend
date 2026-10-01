@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, ArrowRight, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
-import { getExchanges, createExchange, updateExchange, getExchangeProfitSummary } from '../api/exchange'
+import { getExchanges, createExchange, updateExchange, getExchangeProfitSummary, getExchangeLots } from '../api/exchange'
 import { formatMoney, formatDate } from '../lib/format'
 import CurrencyBadge from '../components/CurrencyBadge'
 import Pagination from '../components/Pagination'
@@ -52,6 +52,7 @@ function calcFromAmount(fromCurrency, toCurrency, toAmount, rate) {
 
 export default function Exchange() {
   const qc = useQueryClient()
+  const [view, setView] = useState('transactions')
   const [tab, setTab] = useState('sell')
   const [page, setPage] = useState(1)
   const pageSize = 10
@@ -88,100 +89,177 @@ export default function Exchange() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-ink">Exchange</h1>
-        <button className="btn-primary" onClick={() => setCreateOpen(true)}>
-          <Plus size={16} /> Yeni mübadilə
+        {view === 'transactions' && (
+          <button className="btn-primary" onClick={() => setCreateOpen(true)}>
+            <Plus size={16} /> Yeni mübadilə
+          </button>
+        )}
+      </div>
+
+      <div className="mb-6 flex gap-2 border-b border-border">
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+            view === 'transactions' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'
+          }`}
+          onClick={() => setView('transactions')}
+        >
+          Əməliyyatlar
+        </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+            view === 'lots' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'
+          }`}
+          onClick={() => setView('lots')}
+        >
+          Dollar ehtiyatı
         </button>
       </div>
 
-      <div className="card mb-6 max-w-xs p-4">
-        <div className="text-sm text-muted">Cəmi qazanc</div>
-        <div className="mt-1 text-xl font-semibold text-brand">
-          {formatMoney(profitSummary?.totalRealizedProfit ?? 0, 'RUB')}
-        </div>
-      </div>
+      {view === 'lots' ? (
+        <LotsSection />
+      ) : (
+        <>
+          <div className="card mb-6 max-w-xs p-4">
+            <div className="text-sm text-muted">Cəmi qazanc</div>
+            <div className="mt-1 text-xl font-semibold text-brand">
+              {formatMoney(profitSummary?.totalRealizedProfit ?? 0, 'RUB')}
+            </div>
+          </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:max-w-md">
-        {Object.values(TABS).map((t) => {
-          const isActive = tab === t.key
-          const tone = TAB_TONE[t.tone]
-          const Icon = t.icon
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => switchTab(t.key)}
-              className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition ${
-                isActive ? tone.active : 'border-border bg-surface hover:bg-paper'
-              }`}
-            >
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                isActive ? tone.iconActive : 'bg-paper text-muted'
-              }`}>
-                <Icon size={20} />
-              </div>
-              <div>
-                <div className={`text-sm font-semibold ${isActive ? tone.labelActive : 'text-ink'}`}>
-                  {t.label}
-                </div>
-                <div className="text-xs text-muted">{t.fromCurrency} → {t.toCurrency}</div>
-              </div>
-            </button>
-          )
-        })}
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:max-w-md">
+            {Object.values(TABS).map((t) => {
+              const isActive = tab === t.key
+              const tone = TAB_TONE[t.tone]
+              const Icon = t.icon
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => switchTab(t.key)}
+                  className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition ${
+                    isActive ? tone.active : 'border-border bg-surface hover:bg-paper'
+                  }`}
+                >
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                    isActive ? tone.iconActive : 'bg-paper text-muted'
+                  }`}>
+                    <Icon size={20} />
+                  </div>
+                  <div>
+                    <div className={`text-sm font-semibold ${isActive ? tone.labelActive : 'text-ink'}`}>
+                      {t.label}
+                    </div>
+                    <div className="text-xs text-muted">{t.fromCurrency} → {t.toCurrency}</div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="card overflow-hidden">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead>
+                <tr className="border-b border-border bg-paper text-left text-muted">
+                  <th className="px-4 py-3 font-medium">Tarix</th>
+                  <th className="px-4 py-3 font-medium">Əməliyyat</th>
+                  <th className="px-4 py-3 text-right font-medium">Kurs</th>
+                  <th className="px-4 py-3 text-right font-medium">Qazanc</th>
+                  <th className="px-4 py-3 font-medium">Qeyd</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
+                {!isLoading && (data?.items?.length ?? 0) === 0 && (
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Mübadilə tapılmadı</td></tr>
+                )}
+                {data?.items?.map((ex) => (
+                  <tr key={ex.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 text-muted">{formatDate(ex.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span>{formatMoney(ex.fromAmount, ex.fromCurrency)}</span>
+                        <CurrencyBadge currency={ex.fromCurrency} />
+                        <ArrowRight size={14} className="text-muted" />
+                        <span>{formatMoney(ex.toAmount, ex.toCurrency)}</span>
+                        <CurrencyBadge currency={ex.toCurrency} />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">{ex.rate}</td>
+                    <td className={`px-4 py-3 text-right font-medium ${
+                      ex.realizedProfit == null ? 'text-muted' : ex.realizedProfit < 0 ? 'text-danger' : 'text-brand'
+                    }`}>
+                      {ex.realizedProfit == null ? '—' : formatMoney(ex.realizedProfit, 'RUB')}
+                    </td>
+                    <td className="px-4 py-3 text-muted">{ex.note || '—'}</td>
+                    <td className="px-4 py-3">
+                      <button className="btn-secondary !px-2 !py-1" title="Redaktə et" onClick={() => setEditEx(ex)}>
+                        <Pencil size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+            <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount} onPageChange={setPage} />
+          </div>
+        </>
+      )}
+
+      <CreateExchangeModal tabDef={activeTab} open={createOpen} onClose={() => setCreateOpen(false)} onDone={invalidate} />
+      <EditExchangeModal ex={editEx} onClose={() => setEditEx(null)} onDone={invalidate} />
+    </div>
+  )
+}
+
+function LotsSection() {
+  const { data: lots, isLoading } = useQuery({
+    queryKey: ['exchange-lots'],
+    queryFn: getExchangeLots
+  })
+
+  const totalRemaining = (lots ?? []).reduce((sum, l) => sum + Number(l.remainingAmount ?? 0), 0)
+
+  return (
+    <div>
+      <div className="card mb-6 max-w-xs p-4">
+        <div className="text-sm text-muted">Cəmi qalan dollar ehtiyatı</div>
+        <div className="mt-1 text-xl font-semibold text-usd">{formatMoney(totalRemaining, 'USD')}</div>
       </div>
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] text-sm">
-          <thead>
-            <tr className="border-b border-border bg-paper text-left text-muted">
-              <th className="px-4 py-3 font-medium">Tarix</th>
-              <th className="px-4 py-3 font-medium">Əməliyyat</th>
-              <th className="px-4 py-3 text-right font-medium">Kurs</th>
-              <th className="px-4 py-3 text-right font-medium">Qazanc</th>
-              <th className="px-4 py-3 font-medium">Qeyd</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
-            {!isLoading && (data?.items?.length ?? 0) === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Mübadilə tapılmadı</td></tr>
-            )}
-            {data?.items?.map((ex) => (
-              <tr key={ex.id} className="border-b border-border last:border-0">
-                <td className="px-4 py-3 text-muted">{formatDate(ex.createdAt)}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span>{formatMoney(ex.fromAmount, ex.fromCurrency)}</span>
-                    <CurrencyBadge currency={ex.fromCurrency} />
-                    <ArrowRight size={14} className="text-muted" />
-                    <span>{formatMoney(ex.toAmount, ex.toCurrency)}</span>
-                    <CurrencyBadge currency={ex.toCurrency} />
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-right">{ex.rate}</td>
-                <td className={`px-4 py-3 text-right font-medium ${
-                  ex.realizedProfit == null ? 'text-muted' : ex.realizedProfit < 0 ? 'text-danger' : 'text-brand'
-                }`}>
-                  {ex.realizedProfit == null ? '—' : formatMoney(ex.realizedProfit, 'RUB')}
-                </td>
-                <td className="px-4 py-3 text-muted">{ex.note || '—'}</td>
-                <td className="px-4 py-3">
-                  <button className="btn-secondary !px-2 !py-1" title="Redaktə et" onClick={() => setEditEx(ex)}>
-                    <Pencil size={16} />
-                  </button>
-                </td>
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="border-b border-border bg-paper text-left text-muted">
+                <th className="px-4 py-3 font-medium">Alış tarixi</th>
+                <th className="px-4 py-3 text-right font-medium">Kurs</th>
+                <th className="px-4 py-3 text-right font-medium">İlkin məbləğ</th>
+                <th className="px-4 py-3 text-right font-medium">Qalıq</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {isLoading && <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
+              {!isLoading && (lots?.length ?? 0) === 0 && (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">Açıq partiya yoxdur</td></tr>
+              )}
+              {lots?.map((lot) => (
+                <tr key={lot.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 text-muted">{formatDate(lot.createdAt)}</td>
+                  <td className="px-4 py-3 text-right">{lot.rate}</td>
+                  <td className="px-4 py-3 text-right text-muted">{formatMoney(lot.originalAmount, 'USD')}</td>
+                  <td className="px-4 py-3 text-right font-medium text-ink">{formatMoney(lot.remainingAmount, 'USD')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount} onPageChange={setPage} />
       </div>
-
-      <CreateExchangeModal tabDef={activeTab} open={createOpen} onClose={() => setCreateOpen(false)} onDone={invalidate} />
-      <EditExchangeModal ex={editEx} onClose={() => setEditEx(null)} onDone={invalidate} />
+      <p className="mt-3 text-xs text-muted">
+        Ən köhnə partiya yuxarıda göstərilir - növbəti satış əvvəlcə ondan çıxacaq (FIFO).
+      </p>
     </div>
   )
 }
