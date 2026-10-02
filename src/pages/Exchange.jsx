@@ -15,7 +15,6 @@ import { formatMoney, formatDate } from '../lib/format'
 import CurrencyBadge from '../components/CurrencyBadge'
 import Pagination from '../components/Pagination'
 import Modal from '../components/Modal'
-import ClientAutocomplete from '../components/ClientAutocomplete'
 import MoneyInput from '../components/MoneyInput'
 
 // Dollar alışı: müştəri bizə USD verir, biz ona RUB veririk (RUB = USD * kurs)
@@ -416,7 +415,7 @@ function ConsumptionBreakdown({ exchangeId }) {
   )
 }
 
-const EMPTY_EXCHANGE_FORM = { clientName: '', fromAmount: '', toAmount: '', rate: '', note: '' }
+const EMPTY_EXCHANGE_FORM = { fromAmount: '', toAmount: '', rate: '', note: '' }
 
 function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
   const [form, setForm] = useState(EMPTY_EXCHANGE_FORM)
@@ -465,7 +464,6 @@ function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
   function submit(e) {
     e.preventDefault()
     mutation.mutate({
-      clientName: form.clientName,
       fromCurrency: tabDef.fromCurrency,
       toCurrency: tabDef.toCurrency,
       fromAmount: Number(form.fromAmount),
@@ -477,14 +475,6 @@ function CreateExchangeModal({ tabDef, open, onClose, onDone }) {
   return (
     <Modal open={open} onClose={onClose} title={`Yeni: ${tabDef.label}`}>
       <form onSubmit={submit} className="space-y-4">
-        <div>
-          <label className="label">Müştəri adı (məcburi deyil)</label>
-          <ClientAutocomplete
-            value={form.clientName}
-            onChange={(v) => setForm((f) => ({ ...f, clientName: v }))}
-            placeholder="Müştəri adı (istəyə bağlı)"
-          />
-        </div>
         <div>
           <label className="label">Kurs</label>
           <input className="input" type="number" step="0.0001" required autoFocus value={form.rate} onChange={(e) => handleRateChange(e.target.value)} />
