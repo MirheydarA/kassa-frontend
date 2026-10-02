@@ -344,9 +344,6 @@ function LotsSection() {
           </table>
         </div>
       </div>
-      <p className="mt-3 text-xs text-muted">
-        Ən köhnə partiya yuxarıda göstərilir - növbəti satış əvvəlcə ondan çıxacaq (FIFO). Satış tarixçəsini görmək üçün sağdakı oxu basın.
-      </p>
     </div>
   )
 }

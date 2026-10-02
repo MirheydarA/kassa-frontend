@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Wallet, HandCoins, Landmark, ArrowLeftRight, Receipt, Users, LogOut, Menu, X, KeyRound } from 'lucide-react'
+import { Wallet, HandCoins, Landmark, ArrowLeftRight, Receipt, LogOut, Menu, X, KeyRound } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import ChangePasswordModal from './ChangePasswordModal'
 
@@ -9,8 +9,7 @@ const NAV = [
   { to: '/loans', label: 'Borc ver', icon: HandCoins },
   { to: '/mydebts', label: 'Mənim borclarım', icon: Landmark },
   { to: '/exchange', label: 'Exchange', icon: ArrowLeftRight },
-  { to: '/expenses', label: 'Xərclər', icon: Receipt },
-  { to: '/clients', label: 'Müştərilər', icon: Users }
+  { to: '/expenses', label: 'Xərclər', icon: Receipt }
 ]
 
 function SidebarContent({ onNavigate, onChangePassword }) {
