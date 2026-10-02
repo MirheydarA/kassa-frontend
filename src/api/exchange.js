@@ -22,7 +22,17 @@ export async function getExchangeProfitSummary() {
   return data // { totalRealizedProfit }
 }
 
-export async function getExchangeLots() {
-  const { data } = await apiClient.get('/api/exchange/lots')
+export async function getExchangeLots({ includeClosed = false } = {}) {
+  const { data } = await apiClient.get('/api/exchange/lots', { params: { includeClosed } })
   return data // CurrencyLotDto[], ən köhnədən yeniyə sıralanıb
+}
+
+export async function getExchangeConsumptions(exchangeId) {
+  const { data } = await apiClient.get(`/api/exchange/${exchangeId}/consumptions`)
+  return data // LotConsumptionDetailDto[] - bu satışın hansı partiya(lar)dan qarşılandığı
+}
+
+export async function getLotSales(lotId) {
+  const { data } = await apiClient.get(`/api/exchange/lots/${lotId}/sales`)
+  return data // LotSaleDetailDto[] - bu partiyanın hansı satış(lar)a getdiyi
 }
