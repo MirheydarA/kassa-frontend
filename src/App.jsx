@@ -24,6 +24,7 @@ export default function App() {
           <Route path="/mydebts/:id" element={<MyDebtDetails />} />
           <Route path="/exchange" element={<Exchange />} />
           <Route path="/expenses" element={<Expenses />} />
+          <Route path="/clients" element={<Clients />} />
         </Route>
       </Route>
     </Routes>
