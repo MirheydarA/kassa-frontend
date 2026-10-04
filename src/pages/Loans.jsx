@@ -10,6 +10,7 @@ import ClientAutocomplete from '../components/ClientAutocomplete'
 import MoneyInput from '../components/MoneyInput'
 import LoanEditModal from '../components/LoanEditModal'
 import LoanPayModal from '../components/LoanPayModal'
+import TableSkeleton from '../components/TableSkeleton'
 
 const STATUS_LABELS = {
   open: 'Açıq',
@@ -138,7 +139,7 @@ function LoanColumn({ title, items, isLoading, onRowClick, onPay, onEdit }) {
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
+            {isLoading && <TableSkeleton rows={5} columns={4} />}
             {!isLoading && list.length === 0 && (
               <tr><td colSpan={4} className="px-4 py-8 text-center text-muted">Borc tapılmadı</td></tr>
             )}

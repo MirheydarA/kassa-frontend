@@ -5,6 +5,7 @@ import { getCashBoxBalance, getCashBoxTransactionsByDay } from '../api/cashbox'
 import { formatMoney, formatDate } from '../lib/format'
 import RevertTransactionButton from '../components/RevertTransactionButton'
 import EditBalanceModal from '../components/EditBalanceModal'
+import TableSkeleton from '../components/TableSkeleton'
 
 const TYPE_LABELS = {
   loan: 'Borc verildi',
@@ -146,9 +147,7 @@ function CashboxColumn({ currency, label, balanceAmount, filters, onEditBalance,
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>
-            )}
+            {isLoading && <TableSkeleton rows={5} columns={5} />}
             {!isLoading && (data?.items?.length ?? 0) === 0 && (
               <tr><td colSpan={5} className="px-4 py-8 text-center text-muted">Əməliyyat tapılmadı</td></tr>
             )}
