@@ -5,7 +5,7 @@ export default {
       colors: {
         paper: '#F5F6F3',
         surface: '#FFFFFF',
-        border: '#E3E5E0',
+        border: '#000000',
         ink: '#1B211E',
         muted: '#6B7268',
         brand: {
