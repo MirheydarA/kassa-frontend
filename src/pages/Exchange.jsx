@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, ArrowRight, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Pencil, ArrowRight, ArrowDownCircle, ArrowUpCircle, ChevronDown, ChevronUp, History } from 'lucide-react'
 import {
   getExchanges,
   createExchange,
@@ -16,6 +16,26 @@ import CurrencyBadge from '../components/CurrencyBadge'
 import Pagination from '../components/Pagination'
 import Modal from '../components/Modal'
 import MoneyInput from '../components/MoneyInput'
+import TableSkeleton from '../components/TableSkeleton'
+
+function dayKey(dateStr) {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('az-AZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function groupByDay(items) {
+  const groups = []
+  for (const item of items) {
+    const key = dayKey(item.createdAt)
+    let group = groups.find((g) => g.key === key)
+    if (!group) {
+      group = { key, items: [] }
+      groups.push(group)
+    }
+    group.items.push(item)
+  }
+  return groups
+}
 
 // Dollar alışı: müştəri bizə USD verir, biz ona RUB veririk (RUB = USD * kurs)
 // Dollar satışı: müştəri bizə RUB verir, biz ona USD veririk (USD = RUB / kurs)
@@ -71,8 +91,8 @@ export default function Exchange() {
   const activeTab = TABS[tab]
 
   const { data, isLoading } = useQuery({
-    queryKey: ['exchange', activeTab.fromCurrency, page],
-    queryFn: () => getExchanges({ fromCurrency: activeTab.fromCurrency, page, pageSize })
+    queryKey: ['exchange', activeTab.fromCurrency, page, 'current'],
+    queryFn: () => getExchanges({ fromCurrency: activeTab.fromCurrency, page, pageSize, current: true })
   })
 
   const { data: profitSummary } = useQuery({
@@ -118,6 +138,14 @@ export default function Exchange() {
           onClick={() => setView('transactions')}
         >
           Əməliyyatlar
+        </button>
+        <button
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+            view === 'history' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'
+          }`}
+          onClick={() => setView('history')}
+        >
+          <History size={14} /> Tarixçə
         </button>
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
@@ -170,6 +198,9 @@ export default function Exchange() {
             })}
           </div>
 
+          {view === 'history' ? (
+            <HistorySection fromCurrency={activeTab.fromCurrency} />
+          ) : (
           <div className="card overflow-hidden">
             <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-sm">
@@ -184,7 +215,7 @@ export default function Exchange() {
                 </tr>
               </thead>
               <tbody>
-                {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
+                {isLoading && <TableSkeleton rows={5} columns={6} />}
                 {!isLoading && (data?.items?.length ?? 0) === 0 && (
                   <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">Mübadilə tapılmadı</td></tr>
                 )}
@@ -243,11 +274,126 @@ export default function Exchange() {
             </div>
             <Pagination page={page} pageSize={pageSize} totalCount={data?.totalCount} onPageChange={changePage} />
           </div>
+          )}
         </>
       )}
 
       <CreateExchangeModal tabDef={activeTab} open={createOpen} onClose={() => setCreateOpen(false)} onDone={invalidate} />
       <EditExchangeModal ex={editEx} onClose={() => setEditEx(null)} onDone={invalidate} />
+    </div>
+  )
+}
+
+// Bütün tarixçə (current=false), günlərə görə qruplaşdırılıb, gün-gün göstərilir
+function HistorySection({ fromCurrency }) {
+  const [historyPage, setHistoryPage] = useState(1)
+  const [expandedId, setExpandedId] = useState(null)
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['exchange', fromCurrency, 'history-all'],
+    queryFn: () => getExchanges({ fromCurrency, page: 1, pageSize: 1000, current: false })
+  })
+
+  const allItems = data?.items ?? []
+  const dayGroups = groupByDay(allItems)
+  const totalDayPages = Math.max(1, dayGroups.length)
+  const currentGroup = dayGroups[historyPage - 1]
+  const visibleItems = currentGroup?.items ?? []
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-paper text-left text-muted">
+              <th className="px-4 py-3 font-medium">Tarix</th>
+              <th className="px-4 py-3 font-medium">Əməliyyat</th>
+              <th className="px-4 py-3 text-right font-medium">Kurs</th>
+              <th className="px-4 py-3 text-right font-medium">Qazanc</th>
+              <th className="px-4 py-3 font-medium">Qeyd</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading && <TableSkeleton rows={5} columns={5} />}
+            {!isLoading && allItems.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted">Tarixçə boşdur</td></tr>
+            )}
+            {!isLoading && allItems.length > 0 && (
+              <tr className="bg-paper">
+                <td colSpan={5} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                  {currentGroup?.key ?? '—'}
+                </td>
+              </tr>
+            )}
+            {visibleItems.map((ex) => {
+              const isExpanded = expandedId === ex.id
+              return (
+                <Fragment key={ex.id}>
+                  <tr className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 text-muted">{formatDate(ex.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span>{formatMoney(ex.fromAmount, ex.fromCurrency)}</span>
+                        <CurrencyBadge currency={ex.fromCurrency} />
+                        <ArrowRight size={14} className="text-muted" />
+                        <span>{formatMoney(ex.toAmount, ex.toCurrency)}</span>
+                        <CurrencyBadge currency={ex.toCurrency} />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">{ex.rate}</td>
+                    <td className={`px-4 py-3 text-right font-medium ${
+                      ex.realizedProfit == null ? 'text-muted' : ex.realizedProfit < 0 ? 'text-danger' : 'text-brand'
+                    }`}>
+                      {ex.realizedProfit == null ? (
+                        '—'
+                      ) : (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 hover:underline"
+                          title="Hansı partiyadan qarşılandığını göstər"
+                          onClick={() => setExpandedId((id) => (id === ex.id ? null : ex.id))}
+                        >
+                          {formatMoney(ex.realizedProfit, 'RUB')}
+                          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted">{ex.note || '—'}</td>
+                  </tr>
+                  {isExpanded && (
+                    <tr className="border-b border-border bg-paper/50 last:border-0">
+                      <td colSpan={5} className="p-0">
+                        <ConsumptionBreakdown exchangeId={ex.id} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted">
+        <span>{dayGroups.length} gün</span>
+        <div className="flex items-center gap-1">
+          <button
+            className="btn-secondary !px-2 !py-1"
+            disabled={historyPage >= totalDayPages}
+            onClick={() => setHistoryPage((p) => Math.min(totalDayPages, p + 1))}
+          >
+            Əvvəlki gün
+          </button>
+          <span className="px-2 text-ink">{dayGroups.length === 0 ? 0 : historyPage} / {totalDayPages}</span>
+          <button
+            className="btn-secondary !px-2 !py-1"
+            disabled={historyPage <= 1}
+            onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+          >
+            Növbəti gün
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
