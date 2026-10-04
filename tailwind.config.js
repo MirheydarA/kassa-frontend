@@ -33,7 +33,7 @@ export default {
         DEFAULT: '8px'
       },
       borderWidth: {
-        DEFAULT: '2px'
+        DEFAULT: '1px'
       }
     }
   },
