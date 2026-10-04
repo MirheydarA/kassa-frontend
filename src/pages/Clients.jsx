@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { Plus, Pencil, Search } from 'lucide-react'
 import { getClients, createClient, updateClient } from '../api/clients'
 import Modal from '../components/Modal'
+import TableSkeleton from '../components/TableSkeleton'
 
 export default function Clients() {
   const qc = useQueryClient()
@@ -46,7 +47,7 @@ export default function Clients() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={3} className="px-4 py-8 text-center text-muted">Yüklənir…</td></tr>}
+            {isLoading && <TableSkeleton rows={5} columns={3} />}
             {!isLoading && clients.length === 0 && (
               <tr><td colSpan={3} className="px-4 py-8 text-center text-muted">Müştəri tapılmadı</td></tr>
             )}
