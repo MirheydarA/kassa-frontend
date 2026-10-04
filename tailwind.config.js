@@ -31,6 +31,9 @@ export default {
       },
       borderRadius: {
         DEFAULT: '8px'
+      },
+      borderWidth: {
+        DEFAULT: '2px'
       }
     }
   },
