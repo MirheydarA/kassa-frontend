@@ -36,13 +36,13 @@ export default function UsdRubChart({ showHeader = true, height = 'h-80' }) {
   }, [])
 
   return (
-    <div className="card overflow-hidden p-0">
+    <div className="card flex h-full flex-col overflow-hidden p-0">
       {showHeader && (
-        <div className="flex items-center justify-between border-b border-border px-4 py-2">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2">
           <span className="text-sm font-medium text-ink">USD/RUB (canlı kurs)</span>
         </div>
       )}
-      <div className={`tradingview-widget-container ${height}`} ref={containerRef} />
+      <div className={`tradingview-widget-container min-h-0 flex-1 ${height}`} ref={containerRef} />
     </div>
   )
 }
