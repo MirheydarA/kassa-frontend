@@ -87,9 +87,9 @@ export default function Layout() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface md:flex">
         <SidebarContent onChangePassword={() => setChangePasswordOpen(true)} />
       </aside>
 
