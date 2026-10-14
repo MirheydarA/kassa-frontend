@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 
 const SCRIPT_SRC = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
 
-export default function UsdRubChart() {
+export default function UsdRubChart({ showHeader = true, height = 'h-80' }) {
   const containerRef = useRef(null)
 
   useEffect(() => {
@@ -37,10 +37,12 @@ export default function UsdRubChart() {
 
   return (
     <div className="card overflow-hidden p-0">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2">
-        <span className="text-sm font-medium text-ink">USD/RUB (canlı kurs)</span>
-      </div>
-      <div className="tradingview-widget-container h-80" ref={containerRef} />
+      {showHeader && (
+        <div className="flex items-center justify-between border-b border-border px-4 py-2">
+          <span className="text-sm font-medium text-ink">USD/RUB (canlı kurs)</span>
+        </div>
+      )}
+      <div className={`tradingview-widget-container ${height}`} ref={containerRef} />
     </div>
   )
 }
