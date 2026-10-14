@@ -6,6 +6,7 @@ import { formatMoney, formatDate } from '../lib/format'
 import RevertTransactionButton from '../components/RevertTransactionButton'
 import EditBalanceModal from '../components/EditBalanceModal'
 import TableSkeleton from '../components/TableSkeleton'
+import UsdRubChart from '../components/UsdRubChart'
 
 const TYPE_LABELS = {
   loan: 'Borc verildi',
@@ -50,6 +51,10 @@ export default function Dashboard() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-semibold text-ink">Kassa</h1>
+
+      <div className="mb-6">
+        <UsdRubChart />
+      </div>
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div>
