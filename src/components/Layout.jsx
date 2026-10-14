@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Wallet, HandCoins, Landmark, ArrowLeftRight, Receipt, LogOut, Menu, X, KeyRound } from 'lucide-react'
+import { Wallet, HandCoins, Landmark, ArrowLeftRight, Receipt, LogOut, Menu, X, KeyRound, LineChart } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
+import { useChartPopupStore } from '../store/chartPopupStore'
 import ChangePasswordModal from './ChangePasswordModal'
+import FloatingChartPopup from './FloatingChartPopup'
 
 const NAV = [
   { to: '/', label: 'Kassa', icon: Wallet, end: true },
@@ -14,6 +16,7 @@ const NAV = [
 
 function SidebarContent({ onNavigate, onChangePassword }) {
   const { username, logout } = useAuthStore()
+  const { toggle: toggleChart } = useChartPopupStore()
   const navigate = useNavigate()
 
   return (
@@ -44,6 +47,16 @@ function SidebarContent({ onNavigate, onChangePassword }) {
       </nav>
       <div className="border-t border-border px-3 py-4">
         <div className="mb-2 px-3 text-sm text-muted">{username}</div>
+        <button
+          className="flex w-full items-center gap-3 rounded px-3 py-2 text-sm font-medium text-ink hover:bg-paper"
+          onClick={() => {
+            toggleChart()
+            onNavigate?.()
+          }}
+        >
+          <LineChart size={18} />
+          Kurs qrafiki
+        </button>
         <button
           className="flex w-full items-center gap-3 rounded px-3 py-2 text-sm font-medium text-ink hover:bg-paper"
           onClick={() => {
@@ -122,6 +135,7 @@ export default function Layout() {
       </main>
 
       <ChangePasswordModal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
+      <FloatingChartPopup />
     </div>
   )
 }
